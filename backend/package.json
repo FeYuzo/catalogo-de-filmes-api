@@ -1,0 +1,30 @@
+{
+  "name": "catalogo-filmes-backend",
+  "version": "1.0.0",
+  "description": "Backend API para o Catálogo de Filmes Tom Hanks com MariaDB e TMDB",
+  "main": "src/index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js"
+  },
+  "keywords": [
+    "tom-hanks",
+    "tmdb",
+    "mariadb",
+    "express",
+    "backend"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
+    "dotenv": "^17.3.1",
+    "express": "^5.2.1",
+    "jsonwebtoken": "^9.0.3",
+    "morgan": "^1.10.1",
+    "mysql2": "^3.19.0"
+  }
+}
