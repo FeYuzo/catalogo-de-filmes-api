@@ -9,29 +9,11 @@ services:
       - "${PORT:-3000}:3000"
     environment:
       - PORT=3000
-      - DB_HOST=${DB_HOST:-mariadb}
+      - DB_HOST=${DB_HOST}
       - DB_PORT=${DB_PORT:-3306}
-      - DB_USER=${DB_USER:-aluno}
-      - DB_PASSWORD=${DB_PASSWORD:-alunosenha}
-      - DB_NAME=${DB_NAME:-catalogo_filmes}
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_NAME=${DB_NAME}
       - TMDB_API_KEY=${TMDB_API_KEY}
-      - JWT_SECRET=${JWT_SECRET:-chave_jwt_secreta_local_dev}
-    depends_on:
-      - mariadb
+      - JWT_SECRET=${JWT_SECRET}
     restart: unless-stopped
-
-  mariadb:
-    image: mariadb:10.11
-    environment:
-      - MYSQL_ROOT_PASSWORD=rootpassword
-      - MYSQL_DATABASE=${DB_NAME:-catalogo_filmes}
-      - MYSQL_USER=${DB_USER:-aluno}
-      - MYSQL_PASSWORD=${DB_PASSWORD:-alunosenha}
-    expose:
-      - "3306"
-    volumes:
-      - mariadb_data:/var/lib/mysql
-    restart: unless-stopped
-
-volumes:
-  mariadb_data:
