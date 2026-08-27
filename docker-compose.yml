@@ -1,7 +1,10 @@
 version: '3.8'
 
 services:
-  app:
+  # ============================================================================
+  # 1. Catálogo de Filmes (Único Ponto de Entrada Público)
+  # ============================================================================
+  catalog:
     build:
       context: .
       dockerfile: Dockerfile
@@ -9,6 +12,7 @@ services:
       - "${PORT:-3000}:3000"
     environment:
       - PORT=3000
+      - AUTH_SERVICE_URL=http://auth-service:4000
       - DB_HOST=${DB_HOST}
       - DB_PORT=${DB_PORT:-3306}
       - DB_USER=${DB_USER}
@@ -16,4 +20,41 @@ services:
       - DB_NAME=${DB_NAME}
       - TMDB_API_KEY=${TMDB_API_KEY}
       - JWT_SECRET=${JWT_SECRET}
+    depends_on:
+      - auth-service
+    networks:
+      - internal-net
     restart: unless-stopped
+
+  # ============================================================================
+  # 2. Microsserviço de Autenticação (Acesso Exclusivo na Rede Interna do Docker)
+  #    - Sem 'ports:' mapeado para o host. Fica invisível para a internet.
+  #    - Gerencia: login, cadastro, papéis (roles), esqueci minha senha e tokens de expiração.
+  # ============================================================================
+  auth-service:
+    build:
+      context: ./auth-service
+      dockerfile: Dockerfile
+    expose:
+      - "4000"
+    environment:
+      - PORT=4000
+      - DB_HOST=${DB_HOST}
+      - DB_PORT=${DB_PORT:-3306}
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_NAME=${DB_NAME}
+      - JWT_SECRET=${JWT_SECRET}
+      - APP_URL=${APP_URL:-http://localhost:3000}
+      - SMTP_HOST=${SMTP_HOST:-sandbox.smtp.mailtrap.io}
+      - SMTP_PORT=${SMTP_PORT:-2525}
+      - SMTP_USER=${SMTP_USER}
+      - SMTP_PASS=${SMTP_PASS}
+      - SMTP_FROM=${SMTP_FROM:-nao-responda@catalogofilmes.com}
+    networks:
+      - internal-net
+    restart: unless-stopped
+
+networks:
+  internal-net:
+    driver: bridge

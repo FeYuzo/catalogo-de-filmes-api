@@ -21,6 +21,7 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = parseInt(process.env.PORT || '3000', 10);
+const AUTH_SERVICE_URL = (process.env.AUTH_SERVICE_URL || 'http://auth-service:4000').replace(/\/$/, '');
 
 // Middlewares
 app.use(morgan('dev'));
@@ -48,12 +49,33 @@ app.get('/api/health', async (req, res) => {
     dbStatus = `error: ${err.message}`;
   }
 
+  // Verifica conectividade interna com o Auth-Service
+  let authServiceStatus = 'unreachable';
+  let authServiceDetails = null;
+  try {
+    const authRes = await fetch(`${AUTH_SERVICE_URL}/api/health`, { signal: AbortSignal.timeout(3000) });
+    if (authRes.ok) {
+      authServiceStatus = 'connected';
+      authServiceDetails = await authRes.json();
+    } else {
+      authServiceStatus = `http_error_${authRes.status}`;
+    }
+  } catch (err) {
+    authServiceStatus = `error: ${err.message}`;
+  }
+
   const tmdbKeyConfigured = Boolean(process.env.TMDB_API_KEY || process.env.TMDB_TOKEN);
 
   res.json({
+    service: 'catalog-service',
     status: 'ok',
     timestamp: new Date().toISOString(),
     database: dbStatus,
+    auth_service: {
+      url: AUTH_SERVICE_URL,
+      status: authServiceStatus,
+      details: authServiceDetails
+    },
     tmdb_configured: tmdbKeyConfigured
   });
 });
@@ -75,9 +97,9 @@ app.use((req, res, next) => {
 
 // Middleware de tratamento global de erros
 app.use((err, req, res, next) => {
-  console.error('[Server Error]', err);
+  console.error('[Catalog Server Error]', err);
   res.status(err.status || 500).json({
-    error: err.message || 'Erro interno no servidor.'
+    error: err.message || 'Erro interno no servidor do catálogo.'
   });
 });
 
@@ -85,14 +107,15 @@ app.use((err, req, res, next) => {
 async function startServer() {
   console.log('==============================================');
   console.log('🎬 Catálogo de Filmes Tom Hanks - Servidor');
+  console.log(`🔗 Auth-Service configurado em: ${AUTH_SERVICE_URL}`);
   console.log('==============================================');
 
-  // Inicializa o banco de dados MariaDB
+  // Inicializa o banco de dados MariaDB do catálogo
   await initDatabase();
 
   app.listen(PORT, '0.0.0.0', () => {
-    console.log(`🚀 Servidor rodando na porta ${PORT}`);
-    console.log(`🌐 Acesse localmente em: http://localhost:${PORT}`);
+    console.log(`🚀 Catálogo rodando na porta pública ${PORT}`);
+    console.log(`🌐 Ponto de entrada público: http://localhost:${PORT}`);
   });
 }
 

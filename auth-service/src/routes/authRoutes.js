@@ -5,23 +5,26 @@ import {
   me,
   logout,
   getUserRole,
+  validateTokenEndpoint,
   forgotPassword,
   verifyResetToken,
   resetPassword
 } from '../controllers/authController.js';
+import { authenticate } from '../middleware/auth.js';
 
 const router = Router();
 
-// Rotas de Autenticação e Sessão (repassadas internamente ao Auth-Service)
+// Rotas de Cadastro, Login, Sessão e Perfil
 router.post('/register', register);
 router.post('/login', login);
-router.get('/me', me);
+router.get('/me', authenticate, me);
 router.post('/logout', logout);
 
-// Rotas de Papéis (Role)
+// Rotas de Papéis (Role) e Validação Interna
 router.get('/role/:id', getUserRole);
+router.post('/validate-token', validateTokenEndpoint);
 
-// Rotas de Esqueci Minha Senha / Redefinição com expiração de 30 minutos
+// Rotas de Recuperação e Redefinição de Senha
 router.post('/forgot-password', forgotPassword);
 router.get('/verify-reset-token', verifyResetToken);
 router.post('/reset-password', resetPassword);

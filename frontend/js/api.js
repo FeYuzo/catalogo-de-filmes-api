@@ -73,11 +73,11 @@ export const api = {
     return data;
   },
 
-  // ===== AUTH =====
-  async register(nome, email, senha) {
+  // ===== AUTH & MICROSSERVIÇO DE AUTENTICAÇÃO =====
+  async register(nome, email, senha, role = 'usuario') {
     const data = await this.request('/auth/register', {
       method: 'POST',
-      body: JSON.stringify({ nome, email, senha })
+      body: JSON.stringify({ nome, email, senha, role })
     });
     if (data.token) {
       this.setToken(data.token);
@@ -110,6 +110,31 @@ export const api = {
     } finally {
       this.clearSession();
     }
+  },
+
+  async getUserRole(userId) {
+    return this.request(`/auth/role/${userId}`);
+  },
+
+  // ===== ESQUECI MINHA SENHA & REDEFINIÇÃO (EXPIRAÇÃO DE 30 MIN) =====
+  async forgotPassword(email) {
+    return this.request('/auth/forgot-password', {
+      method: 'POST',
+      body: JSON.stringify({ email })
+    });
+  },
+
+  async verifyResetToken(token) {
+    return this.request(`/auth/verify-reset-token?token=${encodeURIComponent(token)}`, {
+      method: 'GET'
+    });
+  },
+
+  async resetPassword(token, nova_senha) {
+    return this.request('/auth/reset-password', {
+      method: 'POST',
+      body: JSON.stringify({ token, nova_senha })
+    });
   },
 
   // ===== MOVIES =====

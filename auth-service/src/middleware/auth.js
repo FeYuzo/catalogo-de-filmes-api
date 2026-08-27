@@ -6,8 +6,7 @@ dotenv.config();
 const JWT_SECRET = process.env.JWT_SECRET || 'chave_secreta_padrao_catalogo_filmes_2026';
 
 /**
- * Middleware para validar o token JWT emitido pelo Auth-Service
- * e injetar os dados do usuário autenticado (incluindo seu papel / role) na requisição.
+ * Middleware para validar o token JWT
  */
 export function authenticate(req, res, next) {
   let token = null;
@@ -18,7 +17,7 @@ export function authenticate(req, res, next) {
     token = authHeader.split(' ')[1];
   }
 
-  // 2. Se não encontrou no header, verifica nos cookies
+  // 2. Verifica nos cookies
   if (!token && req.cookies && req.cookies.token) {
     token = req.cookies.token;
   }
@@ -46,7 +45,7 @@ export function authenticate(req, res, next) {
 }
 
 /**
- * Middleware para checar se o usuário autenticado possui o papel necessário
+ * Middleware para restringir rotas por papel de usuário (role)
  */
 export function requireRole(allowedRoles = []) {
   const roles = Array.isArray(allowedRoles) ? allowedRoles : [allowedRoles];
@@ -61,4 +60,31 @@ export function requireRole(allowedRoles = []) {
     }
     next();
   };
+}
+
+/**
+ * Gera um token JWT contendo id, email, nome e role do usuário
+ */
+export function generateToken(user) {
+  return jwt.sign(
+    {
+      id: user.id,
+      email: user.email,
+      nome: user.nome,
+      role: user.role || 'usuario'
+    },
+    JWT_SECRET,
+    { expiresIn: '7d' }
+  );
+}
+
+/**
+ * Verifica e decodifica um token diretamente
+ */
+export function verifyToken(token) {
+  try {
+    return jwt.verify(token, JWT_SECRET);
+  } catch (err) {
+    return null;
+  }
 }

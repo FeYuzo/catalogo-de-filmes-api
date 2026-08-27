@@ -28,6 +28,7 @@
         <div class="user-badge">
           <span class="avatar-icon">👤</span>
           <span id="nav-user-name" class="user-name">Usuário</span>
+          <span id="nav-user-role" class="user-role-badge">usuario</span>
         </div>
         <button id="btn-logout" class="btn btn-outline-danger btn-sm" title="Sair da conta">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
@@ -37,11 +38,11 @@
     </div>
   </header>
 
-  <!-- ================= VIEW 1: AUTHENTICATION (LOGIN / CADASTRO) ================= -->
+  <!-- ================= VIEW 1: AUTHENTICATION (LOGIN / CADASTRO / RECUPERAÇÃO) ================= -->
   <section id="auth-view" class="view auth-section">
     <div class="container auth-container">
       <div class="auth-hero">
-        <div class="hero-badge">ISW055 · Computação em Nuvem</div>
+        <div class="hero-badge">ISW055 · Computação em Nuvem · Microsserviços</div>
         <h1 class="hero-title">Filmografia de <span class="text-gold">Tom Hanks</span></h1>
         <p class="hero-desc">
           Acesse o catálogo completo com dados ao vivo da TMDB. Salve seus filmes favoritos e faça anotações pessoais com isolamento total por usuário.
@@ -52,19 +53,23 @@
             <span>Dados e pôsteres oficiais em tempo real via TMDB</span>
           </div>
           <div class="feature-item">
-            <span class="feature-icon">🔒</span>
-            <span>Favoritos e comentários 100% isolados na sua conta</span>
+            <span class="feature-icon">🔐</span>
+            <span>Microsserviço de Autenticação isolado com papéis (Roles)</span>
+          </div>
+          <div class="feature-item">
+            <span class="feature-icon">⏱️</span>
+            <span>Recuperação de senha com expiração real de 30 minutos via e-mail</span>
           </div>
           <div class="feature-item">
             <span class="feature-icon">🗄️</span>
-            <span>Persistência individual no MariaDB da disciplina</span>
+            <span>Persistência individual no MariaDB com chave estrangeira</span>
           </div>
         </div>
       </div>
 
       <div class="auth-card">
         <!-- Auth Tabs -->
-        <div class="auth-tabs">
+        <div id="auth-nav-tabs" class="auth-tabs">
           <button id="tab-login" class="tab-btn active" data-tab="login">Entrar</button>
           <button id="tab-register" class="tab-btn" data-tab="register">Criar Conta</button>
         </div>
@@ -82,7 +87,10 @@
           </div>
 
           <div class="form-group">
-            <label for="login-senha">Senha</label>
+            <div class="form-label-row">
+              <label for="login-senha">Senha</label>
+              <button type="button" id="btn-forgot-password" class="btn-link btn-xs" title="Recuperar acesso">Esqueceu a senha?</button>
+            </div>
             <div class="input-wrapper">
               <span class="input-icon">🔑</span>
               <input type="password" id="login-senha" class="form-control" placeholder="••••••••" required autocomplete="current-password">
@@ -113,6 +121,17 @@
           </div>
 
           <div class="form-group">
+            <label for="register-role">Papel do Usuário (Role)</label>
+            <div class="input-wrapper">
+              <span class="input-icon">🛡️</span>
+              <select id="register-role" class="form-control">
+                <option value="usuario" selected>Usuário (Padrão)</option>
+                <option value="admin">Administrador (Admin)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group">
             <label for="register-senha">Senha de Acesso</label>
             <div class="input-wrapper">
               <span class="input-icon">🔑</span>
@@ -125,9 +144,69 @@
           </button>
         </form>
 
+        <!-- Formulário de Esqueci Minha Senha -->
+        <form id="form-forgot" class="auth-form hidden">
+          <div class="auth-form-header">
+            <h3 class="auth-sub-title">Recuperação de Senha</h3>
+            <p class="auth-sub-desc">
+              Informe seu e-mail cadastrado. Um link de redefinição de senha com validade de <strong>30 minutos</strong> será enviado.
+            </p>
+          </div>
+
+          <div class="form-group">
+            <label for="forgot-email">E-mail Cadastrado</label>
+            <div class="input-wrapper">
+              <span class="input-icon">✉️</span>
+              <input type="email" id="forgot-email" class="form-control" placeholder="seu.email@exemplo.com" required autocomplete="email">
+            </div>
+          </div>
+
+          <button type="submit" id="btn-submit-forgot" class="btn btn-primary btn-block">
+            <span>Enviar Link de Recuperação</span>
+          </button>
+
+          <div class="form-helper-center">
+            <button type="button" id="btn-forgot-back" class="btn-link">← Voltar para o Login</button>
+          </div>
+        </form>
+
+        <!-- Formulário de Redefinir Senha (com Token) -->
+        <form id="form-reset" class="auth-form hidden">
+          <div class="auth-form-header">
+            <h3 class="auth-sub-title">Redefinir Senha</h3>
+            <p id="reset-token-info" class="auth-sub-desc">
+              Digite e confirme sua nova senha de acesso.
+            </p>
+          </div>
+
+          <div class="form-group">
+            <label for="reset-nova-senha">Nova Senha</label>
+            <div class="input-wrapper">
+              <span class="input-icon">🔑</span>
+              <input type="password" id="reset-nova-senha" class="form-control" placeholder="Mínimo 4 caracteres" required autocomplete="new-password">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="reset-confirma-senha">Confirmar Nova Senha</label>
+            <div class="input-wrapper">
+              <span class="input-icon">🔒</span>
+              <input type="password" id="reset-confirma-senha" class="form-control" placeholder="Repita a nova senha" required autocomplete="new-password">
+            </div>
+          </div>
+
+          <button type="submit" id="btn-submit-reset" class="btn btn-primary btn-block">
+            <span>Salvar Nova Senha</span>
+          </button>
+
+          <div class="form-helper-center">
+            <button type="button" id="btn-reset-back" class="btn-link">← Voltar para o Login</button>
+          </div>
+        </form>
+
         <div class="auth-footer">
           <p class="text-muted text-center text-xs">
-            Isolamento de dados garantido por <code>usuario_id</code> no MariaDB.
+            Microsserviço de Autenticação isolado via rede interna Docker.
           </p>
         </div>
       </div>

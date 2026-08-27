@@ -18,26 +18,16 @@ const dbConfig = {
 export const pool = mysql.createPool(dbConfig);
 
 /**
- * Inicializa as tabelas do MariaDB conforme os requisitos da atividade.
+ * Inicializa as tabelas do catálogo de filmes no MariaDB (Favoritos e Comentários).
+ * Nota: A tabela de usuários e tokens de autenticação é de responsabilidade do Auth-Service.
  */
 export async function initDatabase(retries = 5, delayMs = 3000) {
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
-      console.log(`[DB] Conectando ao MariaDB em ${dbConfig.host}:${dbConfig.port}... (tentativa ${attempt}/${retries})`);
+      console.log(`[Catalog-DB] Conectando ao MariaDB em ${dbConfig.host}:${dbConfig.port}... (tentativa ${attempt}/${retries})`);
       const connection = await pool.getConnection();
 
-      console.log('[DB] Conexão estabelecida com sucesso. Verificando e criando tabelas...');
-
-      // Tabela de Usuários
-      await connection.query(`
-        CREATE TABLE IF NOT EXISTS usuarios (
-          id INT AUTO_INCREMENT PRIMARY KEY,
-          nome VARCHAR(100) NOT NULL,
-          email VARCHAR(150) UNIQUE NOT NULL,
-          senha_hash VARCHAR(255) NOT NULL,
-          criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-      `);
+      console.log('[Catalog-DB] Conexão estabelecida com sucesso. Verificando tabelas de catálogo...');
 
       // Tabela de Favoritos (com chave única para impedir favoritar 2x o mesmo filme)
       await connection.query(`
@@ -66,15 +56,15 @@ export async function initDatabase(retries = 5, delayMs = 3000) {
       `);
 
       connection.release();
-      console.log('[DB] Tabelas verificadas e inicializadas com sucesso.');
+      console.log('[Catalog-DB] Tabelas favoritos e comentarios verificadas com sucesso.');
       return true;
     } catch (err) {
-      console.error(`[DB] Erro ao conectar ao banco (tentativa ${attempt}/${retries}):`, err.message);
+      console.error(`[Catalog-DB] Erro ao conectar ao banco (tentativa ${attempt}/${retries}):`, err.message);
       if (attempt < retries) {
-        console.log(`[DB] Aguardando ${delayMs / 1000}s antes da próxima tentativa...`);
+        console.log(`[Catalog-DB] Aguardando ${delayMs / 1000}s antes da próxima tentativa...`);
         await new Promise((res) => setTimeout(res, delayMs));
       } else {
-        console.error('[DB] Falha crítica ao conectar com o MariaDB após várias tentativas.');
+        console.error('[Catalog-DB] Falha crítica ao conectar com o MariaDB após várias tentativas.');
         return false;
       }
     }
