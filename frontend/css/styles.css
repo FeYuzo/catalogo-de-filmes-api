@@ -292,29 +292,14 @@ body {
 .form-helper-right {
   display: flex;
   justify-content: flex-end;
-  margin-top: 0.45rem;
+  margin-top: 0.55rem;
+  margin-bottom: 0.25rem;
 }
 
-.btn-forgot-link {
-  background: none;
-  border: none;
-  color: var(--accent-gold);
-  font-size: 0.8rem;
-  font-weight: 600;
-  cursor: pointer;
-  padding: 0.2rem 0.4rem;
-  border-radius: var(--radius-sm);
-  text-decoration: underline;
-  transition: all var(--transition-fast);
-  font-family: inherit;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.3rem;
-}
-
-.btn-forgot-link:hover {
-  color: var(--accent-danger);
-  background-color: rgba(122, 31, 43, 0.08);
+.btn-forgot {
+  font-size: 0.78rem;
+  padding: 0.4rem 0.85rem;
+  letter-spacing: 0.02em;
 }
 
 .auth-form-header {
