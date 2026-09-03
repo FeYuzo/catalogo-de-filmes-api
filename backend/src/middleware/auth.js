@@ -1,5 +1,6 @@
 import jwt from 'jsonwebtoken';
 import dotenv from 'dotenv';
+import { checkUserPermission } from '../services/authService.js';
 
 dotenv.config();
 
@@ -7,7 +8,7 @@ const JWT_SECRET = process.env.JWT_SECRET || 'chave_secreta_padrao_catalogo_film
 
 /**
  * Middleware para validar o token JWT emitido pelo Auth-Service
- * e injetar os dados do usuário autenticado (incluindo seu papel / role) na requisição.
+ * e injetar os dados do usuário autenticado na requisição.
  */
 export function authenticate(req, res, next) {
   let token = null;
@@ -59,6 +60,34 @@ export function requireRole(allowedRoles = []) {
         error: `Acesso proibido. Esta ação requer permissão: ${roles.join(' ou ')}.`
       });
     }
+    next();
+  };
+}
+
+/**
+ * Middleware para enforcement centralizado de permissão RBAC (Padrão A).
+ * Consulta o auth-service em tempo de execução para verificar se o usuário possui a permissão requerida.
+ * @param {string} permission - Permissão no formato '<recurso>:<acao>'
+ */
+export function requirePermission(permission) {
+  return async (req, res, next) => {
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({ error: 'Usuário não autenticado.' });
+    }
+
+    const check = await checkUserPermission(req.user.id, permission);
+
+    if (!check.allowed) {
+      return res.status(403).json({
+        error: check.data?.error || `Acesso proibido. Ação requer a permissão '${permission}'.`
+      });
+    }
+
+    // Mantém req.user.role sincronizado com o banco centralizado
+    if (check.data?.role) {
+      req.user.role = check.data.role;
+    }
+
     next();
   };
 }

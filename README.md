@@ -188,3 +188,125 @@ Crie seu arquivo `.env` baseado no `.env.example`:
 4. **Isolamento de Dados no Catálogo**:
    - Faça login com a nova senha, favorite filmes e adicione comentários pessoais.
    - Os dados permanecem estritamente isolados por `usuario_id` no MariaDB.
+
+---
+
+## 🛡️ Controle de Acesso Baseado em Papéis (RBAC — Role-Based Access Control)
+
+O sistema implementa **Autorização Real no Servidor** através do modelo RBAC, garantindo que o acesso a qualquer recurso sensível seja validado no backend antes de ser executado, independentemente de como a requisição foi originada (se pela interface do navegador ou diretamente via cURL/Postman).
+
+### 1. Documentação de Permissões por Papel
+
+Os quatro conceitos fundamentais do RBAC aplicados ao sistema:
+* **Usuário:** Identidade autenticada (`usuario_id`).
+* **Papel (*Role*):** Categoria de acesso do usuário (`usuario` ou `admin`).
+* **Permissão:** Ação atômica concedida sobre um recurso no formato `<recurso>:<ação>`.
+* **Atribuição:** Vínculo usuário ↔ papel gravado na coluna `role` da tabela `usuarios`.
+
+#### Matriz de Permissões
+
+| Recurso | Ação | Identificador da Permissão | `usuario` | `admin` | Descrição da Regra |
+| :--- | :--- | :--- | :---: | :---: | :--- |
+| **Filmes** | Listar filmes e detalhes | `filmes:listar` | ✅ | ✅ | Consulta ao catálogo TMDB disponível para qualquer autenticado. |
+| **Favoritos** | Gerenciar próprios favoritos | `favoritos:gerenciar_proprio` | ✅ | ✅ | Cada usuário só acessa, adiciona ou remove seus próprios favoritos. |
+| **Comentários** | Criar comentário | `comentarios:criar` | ✅ | ✅ | Publicar anotações/comentários em filmes. |
+| **Comentários** | Listar comentários | `comentarios:listar` | ✅ | ✅ | Usuário visualiza suas notas; Admin visualiza todos com nome do autor. |
+| **Comentários** | Apagar **próprio** comentário | `comentarios:excluir_proprio` | ✅ | ✅ | Excluir apenas os comentários cujo autor seja o próprio usuário logado. |
+| **Comentários** | Apagar comentário de **qualquer** usuário | `comentarios:excluir_qualquer` | ❌ | ✅ | **Ação Exclusiva de Admin (Moderação)**: exclusão forçada de conteúdo de terceiros. |
+
+---
+
+### 2. Ação Exclusiva de Administrador (Moderação de Comentários)
+
+A ação exclusiva implementada é a **Moderação de Comentários** (`DELETE /api/comments/:id`):
+1. Quando uma requisição de exclusão chega ao backend, o servidor busca o comentário no banco.
+2. Se `comentario.usuario_id === req.user.id`, trata-se do autor apagando seu próprio comentário (`comentarios:excluir_proprio`), ação permitida para qualquer usuário.
+3. Se `comentario.usuario_id !== req.user.id`, trata-se de tentativa de exclusão de conteúdo de terceiros:
+   - O backend efetua uma checagem de autorização centralizada (Padrão A) consultando o `auth-service`.
+   - Se o usuário **não** possuir a permissão `comentarios:excluir_qualquer` (papel `usuario`), o servidor recusa a requisição respondendo **`403 Forbidden`**.
+   - Se possuir a permissão (papel `admin`), a exclusão é efetuada com sucesso (**`200 OK`**).
+
+---
+
+### 3. Roteiro de Demonstração (cURL Passo a Passo)
+
+Para evidenciar o enforcement no servidor e capturar os prints solicitados, execute a sequência abaixo em seu terminal:
+
+#### Passo 1: Fazer login com o Usuário 1 (Autor do Comentário)
+```bash
+curl -X POST http://localhost:3000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email": "autor@exemplo.com", "senha": "senha123"}'
+```
+> Copie o `token` retornado e guarde como `TOKEN_AUTOR`.
+
+#### Passo 2: Publicar um comentário com o Usuário 1
+```bash
+curl -X POST http://localhost:3000/api/movies/13/comments \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer TOKEN_AUTOR" \
+  -d '{"texto": "Comentário de teste criado pelo Usuário 1."}'
+```
+> Anote o `id` do comentário gerado no retorno (ex: `"id": 42`).
+
+#### Passo 3: Fazer login com outro Usuário Comum (Não-Admin)
+```bash
+curl -X POST http://localhost:3000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email": "comum@exemplo.com", "senha": "senha123"}'
+```
+> Copie o `token` retornado e guarde como `TOKEN_COMUM`.
+
+#### Passo 4: Fazer login com o Administrador
+```bash
+curl -X POST http://localhost:3000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email": "admin@exemplo.com", "senha": "senha123"}'
+```
+> Copie o `token` retornado e guarde como `TOKEN_ADMIN`.
+
+#### Passo 5: [PRINT 1] Usuário Comum tentando apagar comentário de outro usuário ➔ 403 Forbidden
+```bash
+curl -i -X DELETE http://localhost:3000/api/comments/42 \
+  -H "Authorization: Bearer TOKEN_COMUM"
+```
+**Resposta esperada (HTTP 403 Forbidden):**
+```http
+HTTP/1.1 403 Forbidden
+Content-Type: application/json
+
+{
+  "error": "Acesso proibido. Você não tem permissão para excluir comentários de outros usuários."
+}
+```
+
+#### Passo 6: [PRINT 2] Administrador executando a mesma exclusão (Moderação) ➔ 200 OK
+```bash
+curl -i -X DELETE http://localhost:3000/api/comments/42 \
+  -H "Authorization: Bearer TOKEN_ADMIN"
+```
+**Resposta esperada (HTTP 200 OK):**
+```http
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+  "success": true,
+  "message": "Comentário removido com sucesso (ação de moderação administrativa)."
+}
+```
+
+---
+
+### 4. Justificativa Arquitetural: Padrão A vs. Padrão B
+
+* **Padrão A (Enforcement Centralizado — Utilizado Atualmente):**
+  * **Como funciona:** O token de autenticação apenas comprova a identidade do usuário (`id`, `email`). A cada operação sensível ou restrita, o serviço de negócio (Catálogo) consulta a autoridade central (`auth-service` / tabela `usuarios` no banco) perguntando: *"esse usuário possui a permissão X?"*.
+  * **Vantagens:** Consistência e revogação imediatas. Se um administrador for rebaixado para usuário comum no banco de dados, o efeito é instantâneo na próxima requisição, sem brechas de segurança.
+  * **Desvantagens:** Overhead de rede e maior latência, já que exige uma chamada inter-serviços ou consulta ao banco a cada ação sensível.
+
+* **Padrão B (Claims no JWT — Alternativa Descentralizada):**
+  * **O que mudaria no código:** As permissões ou o papel (`role: "admin"`) seriam injetados diretamente no payload do JWT no momento do login (`jwt.sign({ id, role, permissions }, SECRET)`). O middleware de cada microsserviço validaria apenas a assinatura criptográfica do token e leria as claims locais em memória (`decoded.permissions`), sem fazer nenhuma requisição externa ao `auth-service`.
+  * **O Trade-off Fundamental (Velocidade vs. Atraso de Revogação):**
+    * *Velocidade:* Altíssimo desempenho e zero dependência de rede para autorização (verificação local stateless).
+    * *Atraso de Revogação:* Janela de vulnerabilidade. Se um usuário for banido ou rebaixado no banco de dados, seu token JWT continuará válido e autorizado para executar ações administrativas até que expire (por exemplo, durante os 7 dias de validade do token), a menos que se implemente uma lista negra (*blocklist*) complexa de tokens, o que anularia a vantagem do token ser *stateless*.

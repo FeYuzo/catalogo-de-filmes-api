@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import { pool } from '../config/db.js';
 import { generateToken, verifyToken } from '../middleware/auth.js';
 import { sendPasswordResetEmail } from '../services/mailService.js';
+import { hasPermission, ROLES_PERMISSIONS } from '../config/permissions.js';
 
 /**
  * Cadastro de novo usuário
@@ -427,4 +428,82 @@ export async function resetPassword(req, res) {
     console.error('[Auth-Service] Erro ao redefinir senha:', err);
     return res.status(500).json({ error: 'Erro interno ao redefinir senha.' });
   }
+}
+
+/**
+ * Validação de permissão RBAC (Padrão A - Enforcement Centralizado)
+ * Rota: POST /api/auth/authorize
+ * Body: { userId, permission } ou { token, permission }
+ */
+export async function authorizeEndpoint(req, res) {
+  try {
+    let { userId, token, permission } = req.body;
+
+    if (!permission) {
+      return res.status(400).json({ allowed: false, error: 'O parâmetro "permission" é obrigatório.' });
+    }
+
+    // Se forneceu token em vez de userId, decodifica para obter o ID
+    if (!userId && token) {
+      const decoded = verifyToken(token);
+      if (decoded && decoded.id) {
+        userId = decoded.id;
+      }
+    }
+
+    if (!userId) {
+      return res.status(400).json({ allowed: false, error: 'Informe "userId" ou um "token" válido para autorização.' });
+    }
+
+    const userIdNum = parseInt(userId, 10);
+    if (isNaN(userIdNum)) {
+      return res.status(400).json({ allowed: false, error: 'ID de usuário inválido.' });
+    }
+
+    // Consulta papel ATUAL diretamente no banco de dados (Padrão A garante consistência imediata)
+    const [rows] = await pool.query(
+      'SELECT id, nome, email, role FROM usuarios WHERE id = ?',
+      [userIdNum]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({ allowed: false, error: 'Usuário não encontrado.' });
+    }
+
+    const user = rows[0];
+    const userRole = user.role || 'usuario';
+    const allowed = hasPermission(userRole, permission);
+
+    if (!allowed) {
+      return res.status(403).json({
+        allowed: false,
+        userId: user.id,
+        role: userRole,
+        permission,
+        error: `Acesso proibido. O papel '${userRole}' não possui a permissão '${permission}'.`
+      });
+    }
+
+    return res.json({
+      allowed: true,
+      userId: user.id,
+      role: userRole,
+      permission,
+      message: 'Ação permitida com sucesso.'
+    });
+  } catch (err) {
+    console.error('[Auth-Service] Erro ao autorizar ação:', err);
+    return res.status(500).json({ allowed: false, error: 'Erro interno ao validar autorização.' });
+  }
+}
+
+/**
+ * Consulta a matriz de permissões RBAC do sistema
+ * Rota: GET /api/auth/permissions
+ */
+export function getPermissionsMatrix(req, res) {
+  return res.json({
+    success: true,
+    roles: ROLES_PERMISSIONS
+  });
 }

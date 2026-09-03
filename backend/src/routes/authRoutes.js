@@ -5,6 +5,8 @@ import {
   me,
   logout,
   getUserRole,
+  authorize,
+  getPermissions,
   forgotPassword,
   verifyResetToken,
   resetPassword
@@ -18,8 +20,10 @@ router.post('/login', login);
 router.get('/me', me);
 router.post('/logout', logout);
 
-// Rotas de Papéis (Role)
+// Rotas de Papéis (Role) e Autorização RBAC Centralizada (Padrão A)
 router.get('/role/:id', getUserRole);
+router.post('/authorize', authorize);
+router.get('/permissions', getPermissions);
 
 // Rotas de Esqueci Minha Senha / Redefinição com expiração de 30 minutos
 router.post('/forgot-password', forgotPassword);

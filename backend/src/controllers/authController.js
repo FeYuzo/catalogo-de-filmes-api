@@ -1,41 +1,4 @@
-import dotenv from 'dotenv';
-
-dotenv.config();
-
-const AUTH_SERVICE_URL = (process.env.AUTH_SERVICE_URL || 'http://auth-service:4000').replace(/\/$/, '');
-
-/**
- * Função utilitária para chamar o microsserviço de autenticação via rede interna Docker.
- */
-async function callAuthService(endpoint, options = {}) {
-  const url = `${AUTH_SERVICE_URL}${endpoint}`;
-  try {
-    const response = await fetch(url, {
-      headers: {
-        'Content-Type': 'application/json',
-        ...(options.headers || {})
-      },
-      ...options
-    });
-
-    const data = await response.json().catch(() => ({}));
-    return {
-      status: response.status,
-      ok: response.ok,
-      data,
-      headers: response.headers
-    };
-  } catch (err) {
-    console.error(`[Catalog -> Auth-Service Error] Falha ao comunicar com ${url}:`, err.message);
-    return {
-      status: 503,
-      ok: false,
-      data: {
-        error: 'Serviço de autenticação temporariamente indisponível. Verifique a rede interna do Docker.'
-      }
-    };
-  }
-}
+import { callAuthService } from '../services/authService.js';
 
 /**
  * Encaminha cadastro para o Auth-Service
@@ -161,6 +124,31 @@ export async function resetPassword(req, res) {
   const result = await callAuthService('/api/auth/reset-password', {
     method: 'POST',
     body: JSON.stringify(req.body)
+  });
+
+  return res.status(result.status).json(result.data);
+}
+
+/**
+ * Encaminha autorização RBAC para o Auth-Service (Padrão A)
+ * Rota: POST /api/auth/authorize
+ */
+export async function authorize(req, res) {
+  const result = await callAuthService('/api/auth/authorize', {
+    method: 'POST',
+    body: JSON.stringify(req.body)
+  });
+
+  return res.status(result.status).json(result.data);
+}
+
+/**
+ * Consulta matriz de permissões no Auth-Service
+ * Rota: GET /api/auth/permissions
+ */
+export async function getPermissions(req, res) {
+  const result = await callAuthService('/api/auth/permissions', {
+    method: 'GET'
   });
 
   return res.status(result.status).json(result.data);

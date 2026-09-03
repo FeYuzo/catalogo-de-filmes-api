@@ -346,10 +346,13 @@ function renderModalComments(comments) {
   comments.forEach((comment) => {
     const item = document.createElement('div');
     item.className = 'comment-item';
+    const authorBadge = comment.autor_nome
+      ? ` • 👤 <strong>${escapeHtml(comment.autor_nome)}</strong>`
+      : '';
     item.innerHTML = `
       <div class="comment-item-content">
         <p class="comment-text">${escapeHtml(comment.texto)}</p>
-        <div class="comment-date">📅 ${formatDate(comment.criado_em)}</div>
+        <div class="comment-date">📅 ${formatDate(comment.criado_em)}${authorBadge}</div>
       </div>
       <button class="btn-delete-comment" title="Excluir este comentário" data-comment-id="${comment.id}">
         🗑️
