@@ -1,3 +1,4 @@
+import jwt from 'jsonwebtoken';
 import { callAuthService } from '../services/authService.js';
 
 /**
@@ -73,9 +74,22 @@ export async function me(req, res) {
  * Rota: POST /api/auth/logout
  */
 export async function logout(req, res) {
+  const token = req.headers.authorization?.replace('Bearer ', '') || req.cookies?.token;
+  let userId = 'anonimo';
+  if (token) {
+    try {
+      const decoded = jwt.decode(token);
+      if (decoded?.id) userId = decoded.id;
+    } catch (_) {}
+  }
+
   res.clearCookie('token');
-  // Notifica o Auth-Service se necessário
-  await callAuthService('/api/auth/logout', { method: 'POST' });
+  // Notifica o Auth-Service passando o userId para auditoria
+  await callAuthService('/api/auth/logout', {
+    method: 'POST',
+    body: JSON.stringify({ userId })
+  });
+
   return res.json({ success: true, message: 'Logout realizado com sucesso.' });
 }
 

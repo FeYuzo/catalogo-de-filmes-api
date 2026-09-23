@@ -4,6 +4,7 @@ import { pool } from '../config/db.js';
 import { generateToken, verifyToken } from '../middleware/auth.js';
 import { sendPasswordResetEmail } from '../services/mailService.js';
 import { hasPermission, ROLES_PERMISSIONS } from '../config/permissions.js';
+import { logAuditEvent } from '../services/auditService.js';
 
 /**
  * Cadastro de novo usuário
@@ -118,6 +119,17 @@ export async function login(req, res) {
       maxAge: 7 * 24 * 60 * 60 * 1000
     });
 
+    // Auditoria: evento 'login'
+    logAuditEvent({
+      usuario_id: user.id,
+      acao: 'login',
+      ip: req.headers['x-forwarded-for']?.split(',')[0].trim() || req.socket?.remoteAddress || req.ip,
+      detalhes: {
+        email: user.email,
+        role: user.role
+      }
+    });
+
     return res.json({
       success: true,
       message: 'Login realizado com sucesso.',
@@ -159,6 +171,13 @@ export async function me(req, res) {
  * Rota: POST /api/auth/logout
  */
 export function logout(req, res) {
+  const userId = req.user?.id || req.body?.userId || 'anonimo';
+  logAuditEvent({
+    usuario_id: userId,
+    acao: 'logout',
+    ip: req.headers['x-forwarded-for']?.split(',')[0].trim() || req.socket?.remoteAddress || req.ip
+  });
+
   res.clearCookie('token');
   return res.json({ success: true, message: 'Logout realizado com sucesso.' });
 }
@@ -475,6 +494,17 @@ export async function authorizeEndpoint(req, res) {
     const allowed = hasPermission(userRole, permission);
 
     if (!allowed) {
+      logAuditEvent({
+        usuario_id: user.id,
+        acao: 'permissao_negada',
+        ip: req.headers['x-forwarded-for']?.split(',')[0].trim() || req.socket?.remoteAddress || req.ip,
+        detalhes: {
+          motivo: 'rbac_enforcement_centralizado_negado',
+          papel_usuario: userRole,
+          permissao_requerida: permission
+        }
+      });
+
       return res.status(403).json({
         allowed: false,
         userId: user.id,

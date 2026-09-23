@@ -1,4 +1,5 @@
 import { pool } from '../config/db.js';
+import { logAuditEvent } from '../services/auditService.js';
 
 const IMAGE_BASE_URL = 'https://image.tmdb.org/t/p/w500';
 
@@ -61,6 +62,17 @@ export async function addFavorite(req, res) {
       [userId, movieId, titulo.trim(), poster_path || null]
     );
 
+    // Auditoria: evento 'favoritar_filme'
+    logAuditEvent({
+      usuario_id: userId,
+      acao: 'favoritar_filme',
+      ip: req.headers['x-forwarded-for']?.split(',')[0].trim() || req.socket?.remoteAddress || req.ip,
+      detalhes: {
+        tmdb_movie_id: movieId,
+        titulo: titulo.trim()
+      }
+    });
+
     return res.status(201).json({
       success: true,
       message: 'Filme adicionado aos favoritos com sucesso.',
@@ -94,6 +106,16 @@ export async function removeFavorite(req, res) {
       'DELETE FROM favoritos WHERE usuario_id = ? AND tmdb_movie_id = ?',
       [userId, movieId]
     );
+
+    // Auditoria: evento 'desfavoritar_filme'
+    logAuditEvent({
+      usuario_id: userId,
+      acao: 'desfavoritar_filme',
+      ip: req.headers['x-forwarded-for']?.split(',')[0].trim() || req.socket?.remoteAddress || req.ip,
+      detalhes: {
+        tmdb_movie_id: movieId
+      }
+    });
 
     return res.json({
       success: true,

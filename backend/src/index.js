@@ -11,6 +11,7 @@ import authRoutes from './routes/authRoutes.js';
 import movieRoutes from './routes/movieRoutes.js';
 import favoriteRoutes from './routes/favoriteRoutes.js';
 import commentRoutes from './routes/commentRoutes.js';
+import auditRoutes from './routes/auditRoutes.js';
 import { deleteComment } from './controllers/commentController.js';
 import { authenticate } from './middleware/auth.js';
 
@@ -22,6 +23,7 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = parseInt(process.env.PORT || '3000', 10);
 const AUTH_SERVICE_URL = (process.env.AUTH_SERVICE_URL || 'http://auth-service:4000').replace(/\/$/, '');
+const LOG_SERVICE_URL = (process.env.LOG_SERVICE_URL || 'http://log-service:5000').replace(/\/$/, '');
 
 // Middlewares
 app.use(morgan('dev'));
@@ -64,6 +66,21 @@ app.get('/api/health', async (req, res) => {
     authServiceStatus = `error: ${err.message}`;
   }
 
+  // Verifica conectividade interna com o Log-Service
+  let logServiceStatus = 'unreachable';
+  let logServiceDetails = null;
+  try {
+    const logRes = await fetch(`${LOG_SERVICE_URL}/api/health`, { signal: AbortSignal.timeout(3000) });
+    if (logRes.ok) {
+      logServiceStatus = 'connected';
+      logServiceDetails = await logRes.json();
+    } else {
+      logServiceStatus = `http_error_${logRes.status}`;
+    }
+  } catch (err) {
+    logServiceStatus = `error: ${err.message}`;
+  }
+
   const tmdbKeyConfigured = Boolean(process.env.TMDB_API_KEY || process.env.TMDB_TOKEN);
 
   res.json({
@@ -76,6 +93,11 @@ app.get('/api/health', async (req, res) => {
       status: authServiceStatus,
       details: authServiceDetails
     },
+    log_service: {
+      url: LOG_SERVICE_URL,
+      status: logServiceStatus,
+      details: logServiceDetails
+    },
     tmdb_configured: tmdbKeyConfigured
   });
 });
@@ -86,6 +108,7 @@ app.use('/api/movies', movieRoutes);
 app.use('/api/movies/:tmdb_movie_id/comments', commentRoutes);
 app.delete('/api/comments/:id', authenticate, deleteComment);
 app.use('/api/favorites', favoriteRoutes);
+app.use('/api/logs', auditRoutes);
 
 // Rota fallback para SPA (Single Page Application)
 app.use((req, res, next) => {
@@ -108,6 +131,7 @@ async function startServer() {
   console.log('==============================================');
   console.log('🎬 Catálogo de Filmes Tom Hanks - Servidor');
   console.log(`🔗 Auth-Service configurado em: ${AUTH_SERVICE_URL}`);
+  console.log(`📜 Log-Service configurado em:  ${LOG_SERVICE_URL}`);
   console.log('==============================================');
 
   // Inicializa o banco de dados MariaDB do catálogo

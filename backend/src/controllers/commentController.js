@@ -1,5 +1,6 @@
 import { pool } from '../config/db.js';
 import { checkUserPermission } from '../services/authService.js';
+import { logAuditEvent } from '../services/auditService.js';
 
 /**
  * Lista os comentários de um filme específico.
@@ -75,6 +76,17 @@ export async function addComment(req, res) {
       [result.insertId]
     );
 
+    // Auditoria: evento 'comentar'
+    logAuditEvent({
+      usuario_id: userId,
+      acao: 'comentar',
+      ip: req.headers['x-forwarded-for']?.split(',')[0].trim() || req.socket?.remoteAddress || req.ip,
+      detalhes: {
+        comentario_id: result.insertId,
+        tmdb_movie_id: movieId
+      }
+    });
+
     return res.status(201).json({
       success: true,
       message: 'Comentário salvo com sucesso.',
@@ -96,6 +108,7 @@ export async function deleteComment(req, res) {
   try {
     const userId = req.user.id;
     const commentId = parseInt(req.params.id, 10);
+    const clientIp = req.headers['x-forwarded-for']?.split(',')[0].trim() || req.socket?.remoteAddress || req.ip;
 
     if (isNaN(commentId)) {
       return res.status(400).json({ error: 'ID do comentário inválido.' });
@@ -117,6 +130,19 @@ export async function deleteComment(req, res) {
     // Permissão 'comentarios:excluir_proprio' (permitido para usuario e admin)
     if (comment.usuario_id === userId) {
       await pool.query('DELETE FROM comentarios WHERE id = ?', [commentId]);
+
+      // Auditoria: remoção do próprio comentário
+      logAuditEvent({
+        usuario_id: userId,
+        acao: 'apagar_comentario',
+        ip: clientIp,
+        detalhes: {
+          comentario_id: commentId,
+          tmdb_movie_id: comment.tmdb_movie_id,
+          tipo: 'proprio'
+        }
+      });
+
       return res.json({
         success: true,
         message: 'Comentário removido com sucesso pelo autor.'
@@ -129,6 +155,21 @@ export async function deleteComment(req, res) {
     const authCheck = await checkUserPermission(userId, 'comentarios:excluir_qualquer');
 
     if (!authCheck.allowed) {
+      // Auditoria: tentativa negada por permissão (403)
+      logAuditEvent({
+        usuario_id: userId,
+        acao: 'permissao_negada',
+        ip: clientIp,
+        detalhes: {
+          motivo: 'tentativa_moderacao_sem_permissao',
+          rota: req.originalUrl,
+          metodo: req.method,
+          comentario_id: commentId,
+          autor_comentario_id: comment.usuario_id,
+          permissao_requerida: 'comentarios:excluir_qualquer'
+        }
+      });
+
       return res.status(403).json({
         error: 'Acesso proibido. Você não tem permissão para excluir comentários de outros usuários.'
       });
@@ -136,6 +177,19 @@ export async function deleteComment(req, res) {
 
     // 4. Autorizado pelo auth-service (papel admin): executa a exclusão de moderação
     await pool.query('DELETE FROM comentarios WHERE id = ?', [commentId]);
+
+    // Auditoria: moderação efetuada com sucesso
+    logAuditEvent({
+      usuario_id: userId,
+      acao: 'apagar_comentario_moderacao',
+      ip: clientIp,
+      detalhes: {
+        comentario_id: commentId,
+        autor_comentario_id: comment.usuario_id,
+        tmdb_movie_id: comment.tmdb_movie_id,
+        tipo: 'moderacao_admin'
+      }
+    });
 
     return res.json({
       success: true,

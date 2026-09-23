@@ -1,6 +1,7 @@
 import jwt from 'jsonwebtoken';
 import dotenv from 'dotenv';
 import { checkUserPermission } from '../services/authService.js';
+import { logAuditEvent } from '../services/auditService.js';
 
 dotenv.config();
 
@@ -56,6 +57,19 @@ export function requireRole(allowedRoles = []) {
       return res.status(401).json({ error: 'Usuário não autenticado.' });
     }
     if (!roles.includes(req.user.role)) {
+      logAuditEvent({
+        usuario_id: req.user.id,
+        acao: 'permissao_negada',
+        ip: req.headers['x-forwarded-for']?.split(',')[0].trim() || req.socket?.remoteAddress || req.ip,
+        detalhes: {
+          motivo: 'papel_insuficiente',
+          rota: req.originalUrl,
+          metodo: req.method,
+          papel_usuario: req.user.role,
+          papeis_permitidos: roles
+        }
+      });
+
       return res.status(403).json({
         error: `Acesso proibido. Esta ação requer permissão: ${roles.join(' ou ')}.`
       });
@@ -78,6 +92,19 @@ export function requirePermission(permission) {
     const check = await checkUserPermission(req.user.id, permission);
 
     if (!check.allowed) {
+      logAuditEvent({
+        usuario_id: req.user.id,
+        acao: 'permissao_negada',
+        ip: req.headers['x-forwarded-for']?.split(',')[0].trim() || req.socket?.remoteAddress || req.ip,
+        detalhes: {
+          motivo: 'permissao_insuficiente',
+          rota: req.originalUrl,
+          metodo: req.method,
+          permissao_requerida: permission,
+          papel_usuario: req.user.role
+        }
+      });
+
       return res.status(403).json({
         error: check.data?.error || `Acesso proibido. Ação requer a permissão '${permission}'.`
       });
