@@ -3,7 +3,7 @@
  */
 
 import { api } from './api.js';
-import { initAuth } from './auth.js';
+import { initAuth, updateNavUserAvatar } from './auth.js';
 
 // Elementos da Interface
 const moviesGrid = document.getElementById('movies-grid');
@@ -34,6 +34,35 @@ const btnSaveComment = document.getElementById('btn-save-comment');
 const commentsList = document.getElementById('comments-list');
 const btnCloseModal = document.getElementById('btn-close-modal');
 
+// Modal de Perfil de Usuário
+const profileModal = document.getElementById('profile-modal');
+const btnCloseProfileModal = document.getElementById('btn-close-profile-modal');
+const profileModalTitle = document.getElementById('profile-modal-title');
+const profileAvatarImg = document.getElementById('profile-avatar-img');
+const profileAvatarFallback = document.getElementById('profile-avatar-fallback');
+const profilePhotoControls = document.getElementById('profile-photo-controls');
+const inputProfilePhoto = document.getElementById('input-profile-photo');
+const uploadPhotoSpinner = document.getElementById('upload-photo-spinner');
+const profileDisplayName = document.getElementById('profile-display-name');
+const profileRoleBadge = document.getElementById('profile-role-badge');
+const profileEmail = document.getElementById('profile-email');
+const profileCreatedAt = document.getElementById('profile-created-at');
+const profileBioContainer = document.getElementById('profile-bio-container');
+const profileBioText = document.getElementById('profile-bio-text');
+const profileOwnerActions = document.getElementById('profile-owner-actions');
+const btnToggleEditProfile = document.getElementById('btn-toggle-edit-profile');
+const formEditProfile = document.getElementById('form-edit-profile');
+const editProfileName = document.getElementById('edit-profile-name');
+const editProfileBio = document.getElementById('edit-profile-bio');
+const editBioCounter = document.getElementById('edit-bio-counter');
+const btnSaveProfile = document.getElementById('btn-save-profile');
+const btnCancelEditProfile = document.getElementById('btn-cancel-edit-profile');
+const profileAlert = document.getElementById('profile-alert');
+const profileFavsCount = document.getElementById('profile-favs-count');
+const profileFavsList = document.getElementById('profile-favs-list');
+const profileFavsEmpty = document.getElementById('profile-favs-empty');
+const btnOpenMyProfile = document.getElementById('btn-open-my-profile');
+
 // Toast Container
 const toastContainer = document.getElementById('toast-container');
 
@@ -43,6 +72,8 @@ let currentFilter = 'all'; // 'all' | 'favorites'
 let currentSearch = '';
 let currentSort = 'year-desc';
 let activeMovieForModal = null;
+let activeProfileUserId = 'me';
+let activeProfileData = null;
 
 /**
  * Exibe notificação Toast
@@ -336,31 +367,52 @@ function renderModalComments(comments) {
   if (comments.length === 0) {
     commentsList.innerHTML = `
       <div class="text-center text-muted text-xs" style="padding: 1.5rem 0;">
-        Nenhum comentário adicionado ainda. Escreva suas anotações acima!
+        Nenhum comentário adicionado ainda. Seja o primeiro a comentar!
       </div>
     `;
     return;
   }
 
+  const currentUser = api.getUser();
+
   commentsList.innerHTML = '';
   comments.forEach((comment) => {
     const item = document.createElement('div');
     item.className = 'comment-item';
-    const authorBadge = comment.autor_nome
-      ? ` • 👤 <strong>${escapeHtml(comment.autor_nome)}</strong>`
+
+    const isOwn = currentUser && (currentUser.id === comment.usuario_id);
+    const canDelete = isOwn || (currentUser && currentUser.role === 'admin');
+
+    const authorDisplay = isOwn
+      ? `${escapeHtml(comment.autor_nome || 'Você')} (Você)`
+      : escapeHtml(comment.autor_nome || 'Usuário');
+
+    const authorBadge = ` • 👤 <button type="button" class="comment-author-btn" data-author-id="${comment.usuario_id}" title="Ver perfil de ${authorDisplay}"><strong>${authorDisplay}</strong></button>`;
+
+    const deleteBtnHtml = canDelete
+      ? `<button class="btn-delete-comment" title="${isOwn ? 'Excluir seu comentário' : 'Excluir comentário (Moderação)'}" data-comment-id="${comment.id}">
+          🗑️
+        </button>`
       : '';
+
     item.innerHTML = `
       <div class="comment-item-content">
         <p class="comment-text">${escapeHtml(comment.texto)}</p>
         <div class="comment-date">📅 ${formatDate(comment.criado_em)}${authorBadge}</div>
       </div>
-      <button class="btn-delete-comment" title="Excluir este comentário" data-comment-id="${comment.id}">
-        🗑️
-      </button>
+      ${deleteBtnHtml}
     `;
 
-    const btnDelete = item.querySelector('.btn-delete-comment');
-    btnDelete.addEventListener('click', () => handleDeleteComment(comment.id));
+    const btnAuthor = item.querySelector('.comment-author-btn');
+    btnAuthor?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      openProfileModal(comment.usuario_id);
+    });
+
+    if (canDelete) {
+      const btnDelete = item.querySelector('.btn-delete-comment');
+      btnDelete?.addEventListener('click', () => handleDeleteComment(comment.id));
+    }
 
     commentsList.appendChild(item);
   });
@@ -417,6 +469,250 @@ function updateMovieCardBadge(movieId, count) {
   }
 }
 
+// ================= PERFIL DE USUÁRIO (OBJECT STORAGE & DADOS) =================
+
+/**
+ * Abre o Modal de Perfil do Usuário
+ * @param {string|number} userId - 'me' ou o ID numérico do usuário
+ */
+async function openProfileModal(userId = 'me') {
+  activeProfileUserId = userId;
+  profileModal?.classList.remove('hidden');
+  resetProfileModalUI();
+
+  try {
+    const data = await api.getProfile(userId);
+    const profile = data.profile;
+    activeProfileData = profile;
+    renderProfileData(profile);
+  } catch (err) {
+    showToast(err.message || 'Erro ao carregar dados do perfil.', 'error');
+    closeProfileModal();
+  }
+}
+
+function closeProfileModal() {
+  profileModal?.classList.add('hidden');
+  resetProfileModalUI();
+  activeProfileData = null;
+}
+
+function resetProfileModalUI() {
+  formEditProfile?.classList.add('hidden');
+  profileBioContainer?.classList.remove('hidden');
+  profileAlert?.classList.add('hidden');
+  if (profileAlert) profileAlert.textContent = '';
+  if (inputProfilePhoto) inputProfilePhoto.value = '';
+}
+
+function renderProfileData(profile) {
+  if (!profile) return;
+
+  const isOwner = !!profile.is_owner;
+
+  // Título e identificação básica
+  if (profileModalTitle) {
+    profileModalTitle.textContent = isOwner ? 'Meu Perfil' : `Perfil de ${profile.nome}`;
+  }
+  if (profileDisplayName) profileDisplayName.textContent = profile.nome;
+  if (profileEmail) {
+    profileEmail.textContent = profile.email ? `✉️ ${profile.email}` : '';
+  }
+  if (profileCreatedAt) {
+    profileCreatedAt.textContent = profile.criado_em
+      ? `📅 Membro desde ${formatDate(profile.criado_em).split(' ')[0]}`
+      : '';
+  }
+
+  // Role Badge
+  if (profileRoleBadge) {
+    const role = profile.role || 'usuario';
+    profileRoleBadge.textContent = role === 'admin' ? 'Admin' : 'Usuário';
+    profileRoleBadge.className = `user-role-badge role-${role}`;
+  }
+
+  // Foto de Perfil
+  if (profile.foto_url) {
+    profileAvatarImg.src = profile.foto_url;
+    profileAvatarImg.classList.remove('hidden');
+    profileAvatarFallback.classList.add('hidden');
+  } else {
+    profileAvatarImg.classList.add('hidden');
+    profileAvatarFallback.classList.remove('hidden');
+  }
+
+  // Bio
+  if (profileBioText) {
+    profileBioText.textContent = profile.bio ? profile.bio : 'Sem biografia cadastrada ainda.';
+  }
+
+  // Controles exclusivos do proprietário (IDOR defense no frontend também)
+  if (isOwner) {
+    profilePhotoControls?.classList.remove('hidden');
+    profileOwnerActions?.classList.remove('hidden');
+    if (editProfileName) editProfileName.value = profile.nome;
+    if (editProfileBio) {
+      editProfileBio.value = profile.bio || '';
+      if (editBioCounter) editBioCounter.textContent = `${(profile.bio || '').length}/500`;
+    }
+  } else {
+    profilePhotoControls?.classList.add('hidden');
+    profileOwnerActions?.classList.add('hidden');
+    formEditProfile?.classList.add('hidden');
+  }
+
+  // Filmes Favoritados
+  renderProfileFavorites(profile.favoritos || []);
+}
+
+function renderProfileFavorites(favorites) {
+  if (!profileFavsList || !profileFavsCount || !profileFavsEmpty) return;
+
+  profileFavsCount.textContent = favorites.length;
+
+  if (favorites.length === 0) {
+    profileFavsList.innerHTML = '';
+    profileFavsEmpty.classList.remove('hidden');
+    return;
+  }
+
+  profileFavsEmpty.classList.add('hidden');
+  profileFavsList.innerHTML = '';
+
+  favorites.forEach((fav) => {
+    const item = document.createElement('div');
+    item.className = 'profile-fav-item';
+    item.title = `Ver comentários de ${fav.titulo}`;
+
+    const posterSrc = fav.poster_url || 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="150" viewBox="0 0 100 150"><rect width="100" height="150" fill="%23222"/><text x="50" y="75" fill="%23888" text-anchor="middle">Sem foto</text></svg>';
+
+    item.innerHTML = `
+      <img src="${posterSrc}" alt="${escapeHtml(fav.titulo)}" class="profile-fav-poster" loading="lazy">
+      <div class="profile-fav-info">
+        <span class="profile-fav-title">${escapeHtml(fav.titulo)}</span>
+        <div class="profile-fav-meta">
+          <span>💬 ${fav.comments_count || 0}</span>
+        </div>
+      </div>
+    `;
+
+    item.addEventListener('click', () => {
+      closeProfileModal();
+      const movie = moviesState.find(m => m.id === fav.tmdb_movie_id);
+      if (movie) {
+        openCommentsModal(movie);
+      } else {
+        openCommentsModal({
+          id: fav.tmdb_movie_id,
+          title: fav.titulo,
+          poster_path: fav.poster_path,
+          release_date: fav.criado_em
+        });
+      }
+    });
+
+    profileFavsList.appendChild(item);
+  });
+}
+
+/**
+ * Upload de Foto de Perfil para o MinIO
+ */
+async function handlePhotoUpload(e) {
+  const file = e.target.files?.[0];
+  if (!file) return;
+
+  // Validação de Tamanho no Frontend (máx 5MB)
+  const MAX_SIZE = 5 * 1024 * 1024;
+  if (file.size > MAX_SIZE) {
+    showToast('A imagem excede o tamanho máximo de 5MB.', 'error');
+    inputProfilePhoto.value = '';
+    return;
+  }
+
+  // Validação de formato de arquivo no Frontend
+  const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+  if (!allowed.includes(file.type)) {
+    showToast('Tipo de arquivo não permitido. Envie JPEG, PNG, WebP ou GIF.', 'error');
+    inputProfilePhoto.value = '';
+    return;
+  }
+
+  const formData = new FormData();
+  formData.append('foto', file);
+
+  try {
+    uploadPhotoSpinner?.classList.remove('hidden');
+    const result = await api.uploadProfilePhoto(formData, activeProfileUserId);
+
+    showToast('Foto de perfil salva com sucesso no MinIO!', 'success');
+
+    if (result.foto_url) {
+      profileAvatarImg.src = result.foto_url;
+      profileAvatarImg.classList.remove('hidden');
+      profileAvatarFallback.classList.add('hidden');
+      
+      // Atualiza thumbnail no navbar
+      updateNavUserAvatar(result.foto_url);
+
+      // Atualiza usuário salvo no localStorage
+      const user = api.getUser();
+      if (user) {
+        user.foto_url = result.foto_url;
+        user.foto_perfil = result.foto_perfil;
+        api.setUser(user);
+      }
+    }
+  } catch (err) {
+    showToast(err.message || 'Falha no upload da foto.', 'error');
+  } finally {
+    uploadPhotoSpinner?.classList.add('hidden');
+    inputProfilePhoto.value = '';
+  }
+}
+
+/**
+ * Salva alterações de nome e bio
+ */
+async function handleProfileSave(e) {
+  e.preventDefault();
+  const nome = editProfileName.value.trim();
+  const bio = editProfileBio.value.trim();
+
+  if (!nome || nome.length < 2) {
+    showToast('O nome deve conter pelo menos 2 caracteres.', 'error');
+    return;
+  }
+
+  btnSaveProfile.disabled = true;
+  btnSaveProfile.textContent = 'Salvando...';
+
+  try {
+    const result = await api.updateProfile({ nome, bio }, activeProfileUserId);
+    showToast('Perfil atualizado com sucesso!', 'success');
+
+    profileDisplayName.textContent = nome;
+    profileBioText.textContent = bio || 'Sem biografia cadastrada ainda.';
+    formEditProfile.classList.add('hidden');
+    profileBioContainer.classList.remove('hidden');
+
+    const navUserName = document.getElementById('nav-user-name');
+    if (navUserName) navUserName.textContent = nome;
+
+    const user = api.getUser();
+    if (user) {
+      user.nome = nome;
+      user.bio = bio;
+      api.setUser(user);
+    }
+  } catch (err) {
+    showToast(err.message || 'Erro ao salvar perfil.', 'error');
+  } finally {
+    btnSaveProfile.disabled = false;
+    btnSaveProfile.innerHTML = '<span>Salvar Alterações</span>';
+  }
+}
+
 // ================= EVENT LISTENERS =================
 
 // Filtros de Abas
@@ -470,6 +766,31 @@ document.addEventListener('keydown', (e) => {
 });
 formAddComment?.addEventListener('submit', handleAddComment);
 
+// Modal de Perfil Events
+btnOpenMyProfile?.addEventListener('click', () => openProfileModal('me'));
+btnCloseProfileModal?.addEventListener('click', closeProfileModal);
+profileModal?.addEventListener('click', (e) => {
+  if (e.target === profileModal) closeProfileModal();
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && !profileModal.classList.contains('hidden')) {
+    closeProfileModal();
+  }
+});
+btnToggleEditProfile?.addEventListener('click', () => {
+  formEditProfile.classList.toggle('hidden');
+  profileBioContainer.classList.toggle('hidden');
+});
+btnCancelEditProfile?.addEventListener('click', () => {
+  formEditProfile.classList.add('hidden');
+  profileBioContainer.classList.remove('hidden');
+});
+editProfileBio?.addEventListener('input', (e) => {
+  if (editBioCounter) editBioCounter.textContent = `${e.target.value.length}/500`;
+});
+inputProfilePhoto?.addEventListener('change', handlePhotoUpload);
+formEditProfile?.addEventListener('submit', handleProfileSave);
+
 // Autenticação Eventos
 window.addEventListener('auth:login', () => {
   loadMovies();
@@ -478,6 +799,7 @@ window.addEventListener('auth:login', () => {
 window.addEventListener('auth:logout', () => {
   moviesState = [];
   closeCommentsModal();
+  closeProfileModal();
 });
 
 // Inicialização da Aplicação

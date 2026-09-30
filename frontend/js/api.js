@@ -42,10 +42,11 @@ export const api = {
 
   async request(endpoint, options = {}) {
     const token = this.getToken();
-    const headers = {
-      'Content-Type': 'application/json',
-      ...(options.headers || {})
-    };
+    const headers = { ...(options.headers || {}) };
+
+    if (!(options.body instanceof FormData) && !headers['Content-Type']) {
+      headers['Content-Type'] = 'application/json';
+    }
 
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
@@ -184,6 +185,25 @@ export const api = {
   async deleteComment(commentId) {
     return this.request(`/comments/${commentId}`, {
       method: 'DELETE'
+    });
+  },
+
+  // ===== PROFILE (OBJECT STORAGE & DADOS) =====
+  async getProfile(userId = 'me') {
+    return this.request(`/profile/${userId}`);
+  },
+
+  async updateProfile(data, userId = 'me') {
+    return this.request(`/profile/${userId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    });
+  },
+
+  async uploadProfilePhoto(formData, userId = 'me') {
+    return this.request(`/profile/${userId}/photo`, {
+      method: 'POST',
+      body: formData
     });
   }
 };

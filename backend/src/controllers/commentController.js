@@ -4,8 +4,8 @@ import { logAuditEvent } from '../services/auditService.js';
 
 /**
  * Lista os comentários de um filme específico.
- * Se o usuário for admin, pode visualizar todos os comentários com dados do autor (moderação).
- * Se o usuário for comum, visualiza apenas os seus próprios comentários.
+ * Todos os usuários autenticados (comuns e administradores) podem visualizar
+ * os comentários da comunidade com o nome do autor.
  * Rota: GET /api/movies/:tmdb_movie_id/comments
  */
 export async function listMovieComments(req, res) {
@@ -18,21 +18,16 @@ export async function listMovieComments(req, res) {
       return res.status(400).json({ error: 'tmdb_movie_id inválido.' });
     }
 
-    let query = `
-      SELECT c.id, c.usuario_id, c.tmdb_movie_id, c.texto, c.criado_em, u.nome AS autor_nome, u.email AS autor_email
+    const query = `
+      SELECT c.id, c.usuario_id, c.tmdb_movie_id, c.texto, c.criado_em,
+             u.nome AS autor_nome,
+             IF(? = 'admin', u.email, NULL) AS autor_email
       FROM comentarios c
       LEFT JOIN usuarios u ON c.usuario_id = u.id
       WHERE c.tmdb_movie_id = ?
+      ORDER BY c.criado_em DESC
     `;
-    const params = [movieId];
-
-    // Usuário comum só visualiza seus próprios comentários
-    if (userRole !== 'admin') {
-      query += ' AND c.usuario_id = ?';
-      params.push(userId);
-    }
-
-    query += ' ORDER BY c.criado_em DESC';
+    const params = [userRole, movieId];
 
     const [rows] = await pool.query(query, params);
 

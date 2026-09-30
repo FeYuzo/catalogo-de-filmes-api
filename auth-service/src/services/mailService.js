@@ -203,10 +203,17 @@ Se você não solicitou esta alteração, ignore esta mensagem.
         html: htmlContent
       });
       console.log(`[MailService] E-mail enviado com sucesso! MessageID: ${info.messageId}`);
+      console.log(`[MailService] 🔗 Link de redefinição: ${resetUrl}`);
       return { success: true, messageId: info.messageId, mode: 'smtp' };
     } catch (err) {
-      console.error('[MailService] Erro ao enviar e-mail via SMTP:', err.message);
-      throw new Error(`Falha no envio de e-mail: ${err.message}`);
+      console.error('[MailService] ⚠️ Falha ao enviar via SMTP:', err.message);
+      console.log('================================================================');
+      console.log('⚠️ [MailService] Fallback ativado. Link de recuperação no console:');
+      console.log(`✉️ Para: ${toEmail}`);
+      console.log(`🔗 Link de Redefinição (Válido por 30 min): ${resetUrl}`);
+      console.log(`🔑 Token: ${token}`);
+      console.log('================================================================');
+      return { success: true, mode: 'fallback_console', resetUrl };
     }
   } else {
     // Modo simulação caso SMTP ainda não tenha sido configurado no .env

@@ -55,6 +55,20 @@ export async function initDatabase(retries = 5, delayMs = 3000) {
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
       `);
 
+      // Garante colunas de perfil na tabela de usuários caso existam
+      try {
+        const [bioCols] = await connection.query(`SHOW COLUMNS FROM usuarios LIKE 'bio'`);
+        if (bioCols.length === 0) {
+          await connection.query(`ALTER TABLE usuarios ADD COLUMN bio VARCHAR(500) DEFAULT '' AFTER role`);
+        }
+        const [fotoCols] = await connection.query(`SHOW COLUMNS FROM usuarios LIKE 'foto_perfil'`);
+        if (fotoCols.length === 0) {
+          await connection.query(`ALTER TABLE usuarios ADD COLUMN foto_perfil VARCHAR(255) DEFAULT NULL AFTER bio`);
+        }
+      } catch (_) {
+        // Tabela usuarios ainda não criada ou sem permissão
+      }
+
       connection.release();
       console.log('[Catalog-DB] Tabelas favoritos e comentarios verificadas com sucesso.');
       return true;

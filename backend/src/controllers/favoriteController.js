@@ -13,11 +13,11 @@ export async function listFavorites(req, res) {
 
     const [rows] = await pool.query(
       `SELECT f.id, f.usuario_id, f.tmdb_movie_id, f.titulo, f.poster_path, f.criado_em,
-              (SELECT COUNT(*) FROM comentarios c WHERE c.usuario_id = ? AND c.tmdb_movie_id = f.tmdb_movie_id) as comments_count
+              (SELECT COUNT(*) FROM comentarios c WHERE c.tmdb_movie_id = f.tmdb_movie_id) as comments_count
        FROM favoritos f
        WHERE f.usuario_id = ?
        ORDER BY f.criado_em DESC`,
-      [userId, userId]
+      [userId]
     );
 
     const formattedFavorites = rows.map((fav) => ({

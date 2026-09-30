@@ -21,9 +21,16 @@ services:
       - DB_NAME=${DB_NAME}
       - TMDB_API_KEY=${TMDB_API_KEY}
       - JWT_SECRET=${JWT_SECRET}
+      - MINIO_ENDPOINT=minio
+      - MINIO_PORT=9000
+      - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY:-minioadmin}
+      - MINIO_SECRET_KEY=${MINIO_SECRET_KEY:-minioadmin}
+      - MINIO_BUCKET=${MINIO_BUCKET:-perfil-usuarios}
+      - MINIO_PUBLIC_URL=${MINIO_PUBLIC_URL:-http://localhost:9000}
     depends_on:
       - auth-service
       - log-service
+      - minio
     networks:
       - internal-net
     restart: unless-stopped
@@ -96,9 +103,30 @@ services:
       - internal-net
     restart: unless-stopped
 
+  # ============================================================================
+  # 5. MinIO - Object Storage para Fotos de Perfil
+  #    - Bucket dedicado para avatares ('perfil-usuarios')
+  #    - API S3 na porta 9000 e Console Web na porta 9001
+  # ============================================================================
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      - MINIO_ROOT_USER=${MINIO_ACCESS_KEY:-minioadmin}
+      - MINIO_ROOT_PASSWORD=${MINIO_SECRET_KEY:-minioadmin}
+    ports:
+      - "${MINIO_PORT:-9000}:9000"
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"
+    volumes:
+      - minio-data:/data
+    networks:
+      - internal-net
+    restart: unless-stopped
+
 networks:
   internal-net:
     driver: bridge
 
 volumes:
   redis-data:
+  minio-data:

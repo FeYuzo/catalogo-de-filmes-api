@@ -53,7 +53,7 @@ O sistema é dividido em containers de microsserviços orquestrados via **Docker
 - **Único ponto de entrada público**: expõe a porta `3000` (ou porta do aluno).
 - Serve os arquivos estáticos do frontend (HTML/CSS/JS).
 - Comunica-se com a API externa da **TMDB** para buscar a filmografia e detalhes dos filmes.
-- Persiste e isola favoritos e comentários por usuário (`usuario_id`) no MariaDB.
+- Persiste favoritos isolados por usuário e gerencia comentários da comunidade no MariaDB.
 - Repassa chamadas de autenticação ao `auth-service` e dispara eventos de auditoria ao `log-service`.
 - Disponibiliza a rota de consulta de auditoria (`GET /api/logs`), protegida exclusivamente para administradores via RBAC.
 
@@ -76,6 +76,12 @@ O sistema é dividido em containers de microsserviços orquestrados via **Docker
 - Persistência em memória com durabilidade AOF (`appendonly yes`).
 - Armazena a stream `audit:events` com ordenação cronológica e IDs monotônicos nativos.
 
+### 5. MinIO (`minio`) - Object Storage
+- Armazenamento de alta performance para arquivos binários, 100% compatível com a API AWS S3.
+- Isolamento absoluto de imagens fora do banco relacional MariaDB.
+- Bucket dedicado (`perfil-usuarios`) com política de leitura pública para entrega direta e cacheável de fotos de perfil.
+- Portas expostas: `9000` (API S3) e `9001` (Console Web administrativo).
+
 ---
 
 ## 🗄️ Modelo do Banco de Dados (MariaDB)
@@ -83,13 +89,15 @@ O sistema é dividido em containers de microsserviços orquestrados via **Docker
 As tabelas são gerenciadas e criadas automaticamente pelos serviços:
 
 ```sql
--- Gerenciadas pelo Auth-Service:
+-- Gerenciadas pelo Auth-Service / Catálogo:
 CREATE TABLE IF NOT EXISTS usuarios (
   id INT AUTO_INCREMENT PRIMARY KEY,
   nome VARCHAR(100) NOT NULL,
   email VARCHAR(150) UNIQUE NOT NULL,
   senha_hash VARCHAR(255) NOT NULL,
   role VARCHAR(20) NOT NULL DEFAULT 'usuario',
+  bio VARCHAR(500) DEFAULT '',
+  foto_perfil VARCHAR(255) DEFAULT NULL,
   criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
@@ -233,7 +241,7 @@ Os quatro conceitos fundamentais do RBAC aplicados ao sistema:
 | **Filmes** | Listar filmes e detalhes | `filmes:listar` | ✅ | ✅ | Consulta ao catálogo TMDB disponível para qualquer autenticado. |
 | **Favoritos** | Gerenciar próprios favoritos | `favoritos:gerenciar_proprio` | ✅ | ✅ | Cada usuário só acessa, adiciona ou remove seus próprios favoritos. |
 | **Comentários** | Criar comentário | `comentarios:criar` | ✅ | ✅ | Publicar anotações/comentários em filmes. |
-| **Comentários** | Listar comentários | `comentarios:listar` | ✅ | ✅ | Usuário visualiza suas notas; Admin visualiza todos com nome do autor. |
+| **Comentários** | Listar comentários | `comentarios:listar` | ✅ | ✅ | Visualizar todos os comentários da comunidade com o nome do autor. |
 | **Comentários** | Apagar **próprio** comentário | `comentarios:excluir_proprio` | ✅ | ✅ | Excluir apenas os comentários cujo autor seja o próprio usuário logado. |
 | **Comentários** | Apagar comentário de **qualquer** usuário | `comentarios:excluir_qualquer` | ❌ | ✅ | **Ação Exclusiva de Admin (Moderação)**: exclusão forçada de conteúdo de terceiros. |
 
@@ -584,4 +592,265 @@ Para comprovar que a persistência está ocorrendo diretamente na estrutura de d
 docker compose exec redis redis-cli XRANGE audit:events - +
 ```
 Você verá a árvore nativa de Streams do Redis com cada entrada contendo seus campos `usuario_id`, `acao`, `timestamp`, `ip` e `detalhes`.
+
+---
+
+## 📸 Upload de Foto & Página de Perfil (Object Storage com MinIO)
+
+Esta etapa implementa a página de perfil de usuário com avatar personalizado e biografia, estabelecendo uma clara segregação arquitetural entre dados relacionais estruturados e armazenamento de objetos binários (*Object Storage*).
+
+---
+
+### 1. Decisão de Arquitetura: Object Storage (MinIO) vs. BLOB no MariaDB
+
+A decisão central desta arquitetura é que **arquivos binários de imagem NUNCA devem ser armazenados no banco de dados relacional (MariaDB), nem mesmo em colunas do tipo `BLOB`**.
+
+#### Por que NÃO salvar imagens no MariaDB (nem como BLOB)?
+1. **Database Bloat e Fragmentação de I/O de Disco**:
+   - Mecanismos de armazenamento transacionais (como o InnoDB do MariaDB) organizam páginas em blocos de memória e disco de 16 KB.
+   - O armazenamento de arquivos binários de megabytes força o InnoDB a fragmentar o conteúdo em dezenas de páginas de *overflow* fora da tabela principal, degradando brutalmente a taxa de leitura e escrita.
+2. **Poluição da Memória Cache (InnoDB Buffer Pool)**:
+   - A memória RAM do banco é um recurso crítico dimensionado para manter em cache os índices e linhas mais consultadas do sistema (filmes, comentários e usuários).
+   - Ao trafegar BLOBs binários, o banco expulsa índices e registros de alta frequência da RAM para dar lugar a imagens transitórias, reduzindo drasticamente o *throughput* de todo o sistema.
+3. **Backups e Replicação Lentos e Onipotentes**:
+   - Dumps lógicos regulares (`mysqldump`) e transações de replicação binária (*binlogs*) ficam gigantescos. O que antes era um backup ágil de poucos megabytes se torna uma operação demorada de múltiplos gigabytes, com elevado custo de rede e armazenamento.
+4. **Violação do Princípio da Responsabilidade Única (SRP)**:
+   - Bancos relacionais são especializados em **consultas ACID, relacionamentos e filtros estruturados**. Eles não foram projetados para streaming de mídia ou entrega de arquivos estáticos.
+
+#### A Solução Adotada: Object Storage Especializado (MinIO)
+- As imagens binárias são enviadas diretamente para um **bucket dedicado (`perfil-usuarios`) no MinIO**, serviço de *Object Storage* de alta performance 100% compatível com a API AWS S3.
+- O MariaDB atua com máxima eficiência armazenando **apenas a chave de referência textual** (ex: `avatars/user-1-1727720000000.png`), ocupando escassos bytes de disco e mantendo as consultas ultraleves.
+- Em ambientes de produção de alta escala, o MinIO distribui o armazenamento horizontalmente sem impacto no banco relacional e viabiliza distribuição via CDN diretamente aos clientes.
+
+---
+
+### 2. Estratégia de Entrega de Imagens: Leitura Pública vs. URLs Pré-Assinadas (Presigned URLs)
+
+Para responder à requisição de fotos de perfil aos clientes e navegadores, analisamos os trade-offs das duas estratégias fundamentais de *Object Storage*:
+
+| Critério | Opção A: Leitura Pública no Bucket | Opção B: URLs Pré-Assinadas (*Presigned URLs*) |
+| :--- | :--- | :--- |
+| **Mecanismo de Acesso** | Política de bucket S3 com ação `s3:GetObject` aberta para `Principal: *`. | Token HMAC criptografado gerado no backend com validade temporária (ex: 30 minutos). |
+| **Estabilidade da URL** | **Alta**: A URL é perene e determinística (`http://.../perfil-usuarios/chave.png`). | **Baixa**: A URL é dinâmica e mutável a cada consulta devido aos parâmetros de assinatura. |
+| **Cache em Browsers e CDNs** | **Perfeita**: Suporta headers `Cache-Control: public`, `max-age` e validação por `ETag`. O cliente baixa uma única vez. | **Ruim/Inviável**: CDNs e browsers tratam cada URL com parâmetros únicos como um recurso novo, anulando o cache. |
+| **Custo Computacional do Servidor** | **Zero**: O cliente obtém a imagem diretamente do MinIO ou CDN sem que o backend precise assinar nada. | **Médio**: O backend precisa rodar algoritmos criptográficos para gerar uma nova assinatura a cada renderização de feed. |
+| **Grau de Confidencialidade** | Ideal para dados inerentemente públicos (ex: fotos de perfil, logotipos, posts de catálogo). | Ideal para dados estritamente privados (ex: contratos, holerites, faturas, exames médicos). |
+
+#### Decisão Escolhida no Projeto
+Como a foto de perfil de um usuário em uma comunidade de catálogo de filmes é uma **informação pública por definição** (todos os usuários logados podem visualizar o avatar dos autores de comentários e listas), adotamos a **Leitura Pública no bucket dedicado (`perfil-usuarios`)**.
+
+Além disso, disponibilizamos um endpoint de **Streaming Proxy no Catálogo (`GET /api/profile/photo/:key`)**, garantindo que clientes externos possam consumir fotos diretamente pela mesma porta pública (`3000`), sem exigir que a porta direta do MinIO (`9000`) precise ser aberta para a internet pública caso o ambiente de rede exija um único ponto de entrada.
+
+---
+
+### 3. Validação Rigorosa de Arquivos: Magic Bytes contra MIME Spoofing
+
+Para garantir que o serviço de upload não seja explorado para distribuição de arquivos maliciosos ou execução remota de código (RCE), implementamos uma validação em camadas no backend:
+
+1. **Prevenção de MIME-Type Spoofing por Assinatura Binária (Magic Bytes)**:
+   - O backend **não confia** na extensão do arquivo (`.png`, `.jpg`) enviada pelo cliente, nem no cabeçalho HTTP `Content-Type` (que podem ser facilmente forjados via cURL ou ferramentas de pentest).
+   - O arquivo é inspecionado diretamente no Buffer em memória antes de qualquer envio ao MinIO, verificando a assinatura hexadecimal nativa nos primeiros bytes:
+     - **JPEG/JPG**: `FF D8 FF`
+     - **PNG**: `89 50 4E 47 0D 0A 1A 0A`
+     - **WebP**: `RIFF` (bytes 0–3) e `WEBP` (bytes 8–11)
+     - **GIF**: `47 49 46 38` (`GIF87a` ou `GIF89a`)
+   - Qualquer arquivo com cabeçalho adulterado ou conteúdo binário incompatível é sumariamente rejeitado com **HTTP 400 Bad Request**.
+2. **Armazenamento em Memória (MemoryStorage)**:
+   - O upload utiliza `multer.memoryStorage()`. Nenhum arquivo temporário é escrito no disco rígido do container, eliminando o risco de acúmulo de arquivos órfãos em caso de falha de conexão.
+3. **Limite Estrito de Tamanho**:
+   - O tamanho máximo permitido para o arquivo é fixado em **5 MB**, suficiente para alta definição sem sobrecarregar a largura de banda.
+
+---
+
+### 4. Controle de Acesso e Prevenção contra IDOR (Insecure Direct Object References)
+
+Uma vulnerabilidade clássica em sistemas de perfil é a falha **IDOR**, em que um usuário mal-intencionado altera o identificador na URL ou no corpo da requisição (`usuario_id: 1`) para sobrescrever a foto ou a biografia de outra pessoa.
+
+#### Regra Dura Implementada
+- O backend identifica **quem está editando o perfil exclusivamente através do token JWT validado (`req.user.id`)**.
+- Caso a requisição envie um parâmetro de rota (`PUT /api/profile/:id`) ou campo no corpo (`usuario_id: X`) diferente da identidade do usuário autenticado no JWT:
+  1. A operação é **bloqueada imediatamente com status HTTP 403 Forbidden**.
+  2. Nenhuma alteração é gravada no banco ou no MinIO.
+  3. O evento de violação é despachado assincronamente ao `log-service` como `permissao_negada`, auditando o IP, o ID do invasor e o ID do usuário que se tentou adulterar.
+
+---
+
+### 5. Eventos de Auditoria Integrados ao Redis Streams
+
+As seguintes ações disparam eventos de auditoria automáticos e resilientes no microsserviço de logs:
+
+| Ação Auditada | Evento (`acao`) | Detalhes Gravados na Stream |
+| :--- | :--- | :--- |
+| **Upload de Avatar** | `upload_foto_perfil` | Chave do objeto no MinIO, tamanho em bytes e formato detectado por Magic Bytes. |
+| **Edição de Perfil** | `perfil_atualizado` | Indicadores de alteração de nome e/ou biografia. |
+| **Tentativa de IDOR** | `permissao_negada` | Motivo (`tentativa_edicao_perfil_terceiro`), usuário autenticado, alvo pretendido e rota. |
+
+---
+
+### 6. 🧪 Roteiro de Demonstração Passo a Passo (cURL)
+
+Execute os comandos a seguir no terminal (Bash / PowerShell) para validar todos os comportamentos de ponta a ponta.
+
+#### Passo 1: Autenticar com o Usuário 1 (Proprietário do Perfil)
+```bash
+curl -X POST http://localhost:3000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"comum@exemplo.com","senha":"senha123"}'
+```
+> **Guarde o token gerado como `TOKEN_USER1` e note que o ID deste usuário é `1` (ou o ID retornado).**
+
+---
+
+#### Passo 2: Upload de Foto de Perfil Legítima no MinIO
+Envie um arquivo de imagem válido (ex: `avatar.png`):
+```bash
+curl -X POST http://localhost:3000/api/profile/photo \
+  -H "Authorization: Bearer <TOKEN_USER1>" \
+  -F "foto=@avatar.png"
+```
+**Resposta esperada (HTTP 200 OK):**
+```json
+{
+  "success": true,
+  "message": "Foto de perfil enviada com sucesso.",
+  "foto_perfil": "avatars/user-1-1727721234567.png",
+  "foto_url": "/api/profile/photo/avatars/user-1-1727721234567.png",
+  "foto_direct_url": "http://localhost:9000/perfil-usuarios/avatars/user-1-1727721234567.png"
+}
+```
+
+---
+
+#### Passo 3: Consultar o Perfil do Usuário
+```bash
+curl -X GET http://localhost:3000/api/profile/me \
+  -H "Authorization: Bearer <TOKEN_USER1>"
+```
+**Resposta esperada (HTTP 200 OK):**
+```json
+{
+  "success": true,
+  "profile": {
+    "id": 1,
+    "nome": "Usuário Comum",
+    "email": "comum@exemplo.com",
+    "role": "usuario",
+    "bio": "",
+    "foto_perfil": "avatars/user-1-1727721234567.png",
+    "foto_url": "/api/profile/photo/avatars/user-1-1727721234567.png",
+    "foto_direct_url": "http://localhost:9000/perfil-usuarios/avatars/user-1-1727721234567.png",
+    "is_owner": true,
+    "favoritos": [
+      {
+        "id": 10,
+        "tmdb_movie_id": 13,
+        "titulo": "Forrest Gump",
+        "comments_count": 2
+      }
+    ],
+    "total_favoritos": 1
+  }
+}
+```
+
+---
+
+#### Passo 4: Atualizar Bio e Nome do Próprio Perfil
+```bash
+curl -X PUT http://localhost:3000/api/profile \
+  -H "Authorization: Bearer <TOKEN_USER1>" \
+  -H "Content-Type: application/json" \
+  -d '{"nome":"Usuário Comum Atualizado","bio":"Apaixonado por filmes clássicos de Tom Hanks!"}'
+```
+**Resposta esperada (HTTP 200 OK):**
+```json
+{
+  "success": true,
+  "message": "Perfil atualizado com sucesso.",
+  "user": {
+    "id": 1,
+    "nome": "Usuário Comum Atualizado",
+    "bio": "Apaixonado por filmes clássicos de Tom Hanks!"
+  }
+}
+```
+
+---
+
+#### Passo 5: Autenticar com o Usuário 2 (Outro Usuário)
+```bash
+curl -X POST http://localhost:3000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"outro@exemplo.com","senha":"senha123"}'
+```
+> **Guarde o token gerado como `TOKEN_USER2` (ID deste usuário é `2`).**
+
+---
+
+#### Passo 6: [DEMONSTRAÇÃO DE SEGURANÇA / IDOR] Usuário 2 tentando adulterar o perfil do Usuário 1 🚫 403 Forbidden
+O Usuário 2 tenta modificar o perfil do Usuário 1 fornecendo o ID `1` na rota ou no payload:
+```bash
+curl -i -X PUT http://localhost:3000/api/profile/1 \
+  -H "Authorization: Bearer <TOKEN_USER2>" \
+  -H "Content-Type: application/json" \
+  -d '{"nome":"Invasão Hacker","bio":"Perfil Adulterado!"}'
+```
+**Resposta esperada (HTTP 403 Forbidden):**
+```http
+HTTP/1.1 403 Forbidden
+Content-Type: application/json; charset=utf-8
+
+{
+  "error": "Acesso proibido. Você não tem permissão para editar o perfil de outro usuário."
+}
+```
+
+Da mesma forma, se o Usuário 2 tentar forçar a adulteração enviando `usuario_id` malicioso no corpo:
+```bash
+curl -i -X PUT http://localhost:3000/api/profile \
+  -H "Authorization: Bearer <TOKEN_USER2>" \
+  -H "Content-Type: application/json" \
+  -d '{"usuario_id": 1, "bio":"Tentativa via Body Spoofing"}'
+```
+**Resposta esperada (HTTP 403 Forbidden):**
+```http
+HTTP/1.1 403 Forbidden
+Content-Type: application/json; charset=utf-8
+
+{
+  "error": "Acesso proibido. Você não tem permissão para editar o perfil de outro usuário."
+}
+```
+
+---
+
+#### Passo 7: [AUDITORIA] Administrador verificando o registro de invasão negada no Redis Streams
+Faça login com o Administrador e consulte a rota de auditoria (`GET /api/logs`):
+```bash
+curl -X POST http://localhost:3000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"admin@exemplo.com","senha":"admin"}'
+
+curl -X GET http://localhost:3000/api/logs \
+  -H "Authorization: Bearer <TOKEN_ADMIN>"
+```
+**Entrada de log auditada gerada automaticamente no Redis Streams:**
+```json
+{
+  "id": "1727721590123-0",
+  "usuario_id": "2",
+  "acao": "permissao_negada",
+  "timestamp": "2026-09-30T18:39:50.000Z",
+  "ip": "127.0.0.1",
+  "detalhes": {
+    "motivo": "tentativa_edicao_perfil_terceiro",
+    "usuario_autenticado": 2,
+    "usuario_alvo_tentado": 1,
+    "rota": "/api/profile/1",
+    "metodo": "PUT"
+  }
+}
+```
+Isso comprova que a tentativa maliciosa foi não apenas bloqueada pelo mecanismo de controle de acesso, mas também devidamente registrada para análise forense no microsserviço de logs e auditoria.
+
 

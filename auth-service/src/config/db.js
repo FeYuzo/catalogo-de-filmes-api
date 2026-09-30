@@ -36,7 +36,7 @@ export async function initAuthDatabase(retries = 5, delayMs = 3000) {
 
       console.log('[Auth-DB] Conexão estabelecida com sucesso. Verificando tabelas de autenticação...');
 
-      // 1. Tabela de Usuários (com campo role: 'usuario' ou 'admin')
+      // 1. Tabela de Usuários (com bio, foto_perfil e campo role: 'usuario' ou 'admin')
       await connection.query(`
         CREATE TABLE IF NOT EXISTS usuarios (
           id INT AUTO_INCREMENT PRIMARY KEY,
@@ -44,6 +44,8 @@ export async function initAuthDatabase(retries = 5, delayMs = 3000) {
           email VARCHAR(150) UNIQUE NOT NULL,
           senha_hash VARCHAR(255) NOT NULL,
           role VARCHAR(20) NOT NULL DEFAULT 'usuario',
+          bio VARCHAR(500) DEFAULT '',
+          foto_perfil VARCHAR(255) DEFAULT NULL,
           criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
       `);
@@ -56,6 +58,28 @@ export async function initAuthDatabase(retries = 5, delayMs = 3000) {
         console.log('[Auth-DB] Adicionando coluna "role" na tabela usuarios...');
         await connection.query(`
           ALTER TABLE usuarios ADD COLUMN role VARCHAR(20) NOT NULL DEFAULT 'usuario' AFTER senha_hash;
+        `);
+      }
+
+      // Verifica se a coluna 'bio' já existe
+      const [bioColumns] = await connection.query(`
+        SHOW COLUMNS FROM usuarios LIKE 'bio';
+      `);
+      if (bioColumns.length === 0) {
+        console.log('[Auth-DB] Adicionando coluna "bio" na tabela usuarios...');
+        await connection.query(`
+          ALTER TABLE usuarios ADD COLUMN bio VARCHAR(500) DEFAULT '' AFTER role;
+        `);
+      }
+
+      // Verifica se a coluna 'foto_perfil' já existe
+      const [fotoColumns] = await connection.query(`
+        SHOW COLUMNS FROM usuarios LIKE 'foto_perfil';
+      `);
+      if (fotoColumns.length === 0) {
+        console.log('[Auth-DB] Adicionando coluna "foto_perfil" na tabela usuarios...');
+        await connection.query(`
+          ALTER TABLE usuarios ADD COLUMN foto_perfil VARCHAR(255) DEFAULT NULL AFTER bio;
         `);
       }
 

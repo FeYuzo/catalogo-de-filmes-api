@@ -12,6 +12,8 @@ import movieRoutes from './routes/movieRoutes.js';
 import favoriteRoutes from './routes/favoriteRoutes.js';
 import commentRoutes from './routes/commentRoutes.js';
 import auditRoutes from './routes/auditRoutes.js';
+import profileRoutes from './routes/profileRoutes.js';
+import { initMinIO } from './config/minio.js';
 import { deleteComment } from './controllers/commentController.js';
 import { authenticate } from './middleware/auth.js';
 
@@ -109,6 +111,7 @@ app.use('/api/movies/:tmdb_movie_id/comments', commentRoutes);
 app.delete('/api/comments/:id', authenticate, deleteComment);
 app.use('/api/favorites', favoriteRoutes);
 app.use('/api/logs', auditRoutes);
+app.use('/api/profile', profileRoutes);
 
 // Rota fallback para SPA (Single Page Application)
 app.use((req, res, next) => {
@@ -136,6 +139,9 @@ async function startServer() {
 
   // Inicializa o banco de dados MariaDB do catálogo
   await initDatabase();
+
+  // Inicializa conexão com o MinIO (Object Storage) e bucket dedicado
+  await initMinIO();
 
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 Catálogo rodando na porta pública ${PORT}`);

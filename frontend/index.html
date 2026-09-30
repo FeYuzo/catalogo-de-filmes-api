@@ -25,11 +25,14 @@
 
       <!-- User Menu (Exibido quando autenticado) -->
       <div id="user-nav" class="user-nav hidden">
-        <div class="user-badge">
-          <span class="avatar-icon">👤</span>
+        <button id="btn-open-my-profile" class="user-badge-btn" title="Ver meu perfil">
+          <div class="user-avatar-small-container">
+            <img id="nav-user-avatar" class="user-avatar-small hidden" alt="Avatar">
+            <span id="nav-avatar-icon" class="avatar-icon">👤</span>
+          </div>
           <span id="nav-user-name" class="user-name">Usuário</span>
           <span id="nav-user-role" class="user-role-badge">usuario</span>
-        </div>
+        </button>
         <button id="btn-logout" class="btn btn-outline-danger btn-sm" title="Sair da conta">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
           Sair
@@ -302,8 +305,8 @@
 
         <div class="modal-body">
           <div class="privacy-note">
-            <span>🔒</span>
-            <p><strong>Anotações Pessoais:</strong> Estes comentários são visíveis exclusivamente na sua conta e salvos no MariaDB.</p>
+            <span>💬</span>
+            <p><strong>Comentários da Comunidade:</strong> Compartilhe suas impressões com outros usuários do catálogo.</p>
           </div>
 
           <!-- Add Comment Form -->
@@ -323,13 +326,103 @@
 
           <!-- Comments List -->
           <div class="comments-section">
-            <h4 class="comments-list-title">Seus Comentários (<span id="modal-comments-count">0</span>)</h4>
+            <h4 class="comments-list-title">Comentários (<span id="modal-comments-count">0</span>)</h4>
             <div id="comments-list" class="comments-list">
               <!-- Comments will be rendered here -->
             </div>
           </div>
         </div>
 
+      </div>
+    </div>
+  <!-- ================= MODAL: USER PROFILE ================= -->
+  <div id="profile-modal" class="modal-overlay hidden" role="dialog" aria-modal="true">
+    <div class="modal-card profile-modal-card">
+      <div class="modal-header">
+        <h3 id="profile-modal-title" class="modal-title">Perfil do Usuário</h3>
+        <button id="btn-close-profile-modal" class="modal-close" title="Fechar">&times;</button>
+      </div>
+
+      <div class="modal-body profile-modal-body">
+        <!-- Profile Header / Identity -->
+        <div class="profile-hero-card">
+          <div class="profile-avatar-wrapper">
+            <div class="profile-avatar-circle">
+              <img id="profile-avatar-img" class="profile-avatar-img hidden" alt="Foto de perfil">
+              <span id="profile-avatar-fallback" class="profile-avatar-fallback">👤</span>
+            </div>
+            
+            <!-- Upload controls (only visible if is_owner) -->
+            <div id="profile-photo-controls" class="profile-photo-controls hidden">
+              <input type="file" id="input-profile-photo" accept="image/jpeg,image/png,image/webp,image/gif" class="hidden">
+              <label for="input-profile-photo" id="lbl-upload-photo" class="btn btn-sm btn-outline-gold" title="Enviar nova foto para o MinIO">
+                📷 Alterar Foto
+              </label>
+              <div id="upload-photo-spinner" class="spinner-sm hidden"></div>
+            </div>
+          </div>
+
+          <div class="profile-identity">
+            <div class="profile-name-row">
+              <h2 id="profile-display-name" class="profile-name">Nome do Usuário</h2>
+              <span id="profile-role-badge" class="user-role-badge">usuario</span>
+            </div>
+            <p id="profile-email" class="profile-email text-muted text-xs"></p>
+            <p id="profile-created-at" class="profile-created text-muted text-xs"></p>
+
+            <!-- Bio display mode -->
+            <div id="profile-bio-container" class="profile-bio-container">
+              <p id="profile-bio-text" class="profile-bio-text">Sem bio cadastrada ainda.</p>
+            </div>
+
+            <!-- Edit Button (only visible if is_owner) -->
+            <div id="profile-owner-actions" class="profile-owner-actions hidden">
+              <button type="button" id="btn-toggle-edit-profile" class="btn btn-sm btn-outline">
+                ✏️ Editar Dados
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Form Edit Profile (Hidden by default, toggled on edit) -->
+        <form id="form-edit-profile" class="profile-edit-form hidden">
+          <div class="form-group">
+            <label for="edit-profile-name">Nome Completo</label>
+            <input type="text" id="edit-profile-name" class="form-control" required minlength="2" maxlength="100">
+          </div>
+          <div class="form-group">
+            <div class="label-with-counter">
+              <label for="edit-profile-bio">Bio / Sobre Você</label>
+              <span id="edit-bio-counter" class="char-counter">0/500</span>
+            </div>
+            <textarea id="edit-profile-bio" class="form-control" rows="3" maxlength="500" placeholder="Conte um pouco sobre suas preferências de filmes..."></textarea>
+          </div>
+          <div class="profile-edit-buttons">
+            <button type="submit" id="btn-save-profile" class="btn btn-primary btn-sm">
+              <span>Salvar Alterações</span>
+            </button>
+            <button type="button" id="btn-cancel-edit-profile" class="btn btn-outline btn-sm">
+              Cancelar
+            </button>
+          </div>
+        </form>
+
+        <div id="profile-alert" class="alert hidden"></div>
+
+        <hr class="modal-divider">
+
+        <!-- Favorited Movies Section -->
+        <div class="profile-favorites-section">
+          <h4 class="profile-section-title">
+            ⭐ Filmes Favoritados (<span id="profile-favs-count">0</span>)
+          </h4>
+          <div id="profile-favs-list" class="profile-favs-grid">
+            <!-- Favorite movies rendered here -->
+          </div>
+          <div id="profile-favs-empty" class="text-center text-muted text-xs hidden" style="padding: 1.5rem 0;">
+            Nenhum filme favoritado ainda.
+          </div>
+        </div>
       </div>
     </div>
   </div>

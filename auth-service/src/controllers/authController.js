@@ -149,7 +149,7 @@ export async function login(req, res) {
 export async function me(req, res) {
   try {
     const [rows] = await pool.query(
-      'SELECT id, nome, email, role, criado_em FROM usuarios WHERE id = ?',
+      'SELECT id, nome, email, role, bio, foto_perfil, criado_em FROM usuarios WHERE id = ?',
       [req.user.id]
     );
 

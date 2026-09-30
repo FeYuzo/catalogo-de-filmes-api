@@ -10,6 +10,8 @@ const appView = document.getElementById('app-view');
 const userNav = document.getElementById('user-nav');
 const navUserName = document.getElementById('nav-user-name');
 const navUserRole = document.getElementById('nav-user-role');
+const navUserAvatar = document.getElementById('nav-user-avatar');
+const navAvatarIcon = document.getElementById('nav-avatar-icon');
 const btnLogout = document.getElementById('btn-logout');
 
 const authNavTabs = document.getElementById('auth-nav-tabs');
@@ -96,6 +98,19 @@ export function showAuthView() {
   switchTab('login');
 }
 
+export function updateNavUserAvatar(fotoUrl) {
+  if (navUserAvatar && navAvatarIcon) {
+    if (fotoUrl) {
+      navUserAvatar.src = fotoUrl;
+      navUserAvatar.classList.remove('hidden');
+      navAvatarIcon.classList.add('hidden');
+    } else {
+      navUserAvatar.classList.add('hidden');
+      navAvatarIcon.classList.remove('hidden');
+    }
+  }
+}
+
 export function showAppView(user) {
   authView.classList.add('hidden');
   appView.classList.remove('hidden');
@@ -108,6 +123,9 @@ export function showAppView(user) {
     navUserRole.textContent = role === 'admin' ? 'Admin' : 'Usuário';
     navUserRole.className = `user-role-badge role-${role}`;
   }
+
+  const photoUrl = user?.foto_url || (user?.foto_perfil ? `/api/profile/photo/${user.foto_perfil}` : null);
+  updateNavUserAvatar(photoUrl);
 }
 
 // ===== LOGIN =====
