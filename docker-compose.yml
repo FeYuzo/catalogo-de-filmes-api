@@ -9,7 +9,7 @@ services:
       context: .
       dockerfile: Dockerfile
     ports:
-      - "${PORT:-3000}:3000"
+      - "${HOST_PORT:-8206}:3000"
     environment:
       - PORT=3000
       - AUTH_SERVICE_URL=http://auth-service:4000
