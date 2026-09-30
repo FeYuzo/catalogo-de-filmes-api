@@ -230,7 +230,16 @@ export async function uploadProfilePhoto(req, res) {
     // 4. Gera chave única do objeto no MinIO: avatars/user-<id>-<timestamp>.<ext>
     const objectKey = `avatars/user-${authenticatedUserId}-${Date.now()}.${magicCheck.ext}`;
 
-    // 5. Envia o buffer diretamente para o bucket dedicado no MinIO
+    // 5. Garante a existência do bucket e envia o buffer para o MinIO
+    try {
+      const exists = await minioClient.bucketExists(BUCKET_NAME);
+      if (!exists) {
+        await minioClient.makeBucket(BUCKET_NAME, 'us-east-1');
+      }
+    } catch (bErr) {
+      console.warn('[MinIO] Verificação de bucket:', bErr.message);
+    }
+
     const metaData = {
       'Content-Type': magicCheck.mime,
       'X-Amz-Meta-UserId': String(authenticatedUserId),

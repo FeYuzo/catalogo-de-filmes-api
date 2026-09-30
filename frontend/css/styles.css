@@ -898,6 +898,10 @@ body {
   display: flex;
 }
 
+.modal-dialog-lg {
+  max-width: 680px;
+}
+
 .modal-content {
   background: var(--bg-modal);
   border: 1px solid var(--border-color);
