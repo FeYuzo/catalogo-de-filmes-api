@@ -109,17 +109,16 @@ services:
   #    - API S3 na porta 9000 e Console Web na porta 9001
   # ============================================================================
   minio:
-    image: bitnami/minio:latest
+    image: cgr.dev/chainguard/minio:latest
+    command: server /data --console-address ":9001"
     environment:
       - MINIO_ROOT_USER=${MINIO_ACCESS_KEY:-minioadmin}
       - MINIO_ROOT_PASSWORD=${MINIO_SECRET_KEY:-minioadmin}
-      - MINIO_BROWSER=on
-      - MINIO_CONSOLE_PORT_NUMBER=9001
     ports:
       - "${MINIO_PORT:-9000}:9000"
       - "${MINIO_CONSOLE_PORT:-9001}:9001"
     volumes:
-      - minio-data:/bitnami/minio/data
+      - minio-data:/data
     networks:
       - internal-net
     restart: unless-stopped
