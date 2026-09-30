@@ -38,8 +38,8 @@ function handleUploadMiddleware(req, res, next) {
   });
 }
 
-// 1. Rota pública de exibição de foto via streaming
-router.get('/photo/:key(*)', getProfilePhoto);
+// 1. Rota pública de exibição de foto via streaming (compatível com Express 5 / path-to-regexp v8+)
+router.get('/photo/{*key}', getProfilePhoto);
 
 // 2. Consulta de perfil (autenticado)
 router.get('/me', authenticate, getProfile);

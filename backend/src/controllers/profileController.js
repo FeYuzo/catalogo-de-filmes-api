@@ -295,7 +295,8 @@ export async function uploadProfilePhoto(req, res) {
  */
 export async function getProfilePhoto(req, res) {
   try {
-    const objectKey = req.params[0] || req.params.key;
+    const rawKey = req.params.key || req.params[0];
+    const objectKey = Array.isArray(rawKey) ? rawKey.join('/') : rawKey;
 
     if (!objectKey) {
       return res.status(400).json({ error: 'Chave da foto não informada.' });
