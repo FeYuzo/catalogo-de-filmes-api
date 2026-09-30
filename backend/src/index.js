@@ -37,9 +37,16 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
-// Servir arquivos estáticos do Frontend
+// Servir arquivos estáticos do Frontend (sem cache estagnado)
 const frontendPath = path.resolve(__dirname, '../../frontend');
-app.use(express.static(frontendPath));
+app.use(express.static(frontendPath, {
+  maxAge: 0,
+  setHeaders: (res, filePath) => {
+    if (filePath.endsWith('.html') || filePath.endsWith('.css') || filePath.endsWith('.js')) {
+      res.setHeader('Cache-Control', 'no-cache, must-revalidate');
+    }
+  }
+}));
 
 // Endpoint de verificação de saúde (Healthcheck)
 app.get('/api/health', async (req, res) => {

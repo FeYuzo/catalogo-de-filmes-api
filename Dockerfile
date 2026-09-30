@@ -15,6 +15,7 @@ COPY backend/package*.json ./backend/
 RUN npm --prefix backend install --omit=dev
 
 # Copia o código fonte do backend e frontend
+ARG CACHEBUST=20260930_dark_v2
 COPY backend/ ./backend/
 COPY frontend/ ./frontend/
 
