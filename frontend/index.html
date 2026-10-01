@@ -7,8 +7,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Cinzel:wght@600;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/styles.css?v=2.0.1">
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎬</text></svg>">
+  <link rel="stylesheet" href="css/styles.css?v=2.0.2">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%238b5cf6%22 stroke-width=%222%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22><rect x=%222%22 y=%222%22 width=%2220%22 height=%2220%22 rx=%222%22 ry=%222%22></rect><path d=%22M7 2v20M17 2v20M2 12h20M2 7h5M2 17h5M17 17h5M17 7h5%22></path></svg>">
 </head>
 <body class="bg-dark text-light">
 
@@ -16,10 +16,21 @@
   <header class="navbar">
     <div class="container navbar-container">
       <div class="brand">
-        <span class="brand-icon">🎬</span>
+        <div class="brand-icon-wrapper">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"></rect>
+            <line x1="7" y1="2" x2="7" y2="22"></line>
+            <line x1="17" y1="2" x2="17" y2="22"></line>
+            <line x1="2" y1="12" x2="22" y2="12"></line>
+            <line x1="2" y1="7" x2="7" y2="7"></line>
+            <line x1="2" y1="17" x2="7" y2="17"></line>
+            <line x1="17" y1="17" x2="22" y2="17"></line>
+            <line x1="17" y1="7" x2="22" y2="7"></line>
+          </svg>
+        </div>
         <div class="brand-text">
           <span class="brand-title">Tom Hanks</span>
-          <span class="brand-subtitle">Catálogo & Favoritos</span>
+          <span class="brand-subtitle">Filmografia & Acervo</span>
         </div>
       </div>
 
@@ -28,13 +39,15 @@
         <button id="btn-open-my-profile" class="user-badge-btn" title="Ver meu perfil">
           <div class="user-avatar-small-container">
             <img id="nav-user-avatar" class="user-avatar-small hidden" alt="Avatar">
-            <span id="nav-avatar-icon" class="avatar-icon">👤</span>
+            <span id="nav-avatar-icon" class="avatar-icon">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+            </span>
           </div>
           <span id="nav-user-name" class="user-name">Usuário</span>
           <span id="nav-user-role" class="user-role-badge">usuario</span>
         </button>
         <button id="btn-logout" class="btn btn-outline-danger btn-sm" title="Sair da conta">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
           Sair
         </button>
       </div>
@@ -45,27 +58,35 @@
   <section id="auth-view" class="view auth-section">
     <div class="container auth-container">
       <div class="auth-hero">
-        <div class="hero-badge">ISW055 · Computação em Nuvem · Microsserviços</div>
+        <div class="hero-badge">Computação em Nuvem · Microsserviços</div>
         <h1 class="hero-title">Filmografia de <span class="text-gold">Tom Hanks</span></h1>
         <p class="hero-desc">
-          Acesse o catálogo completo com dados ao vivo da TMDB. Salve seus filmes favoritos e faça anotações pessoais com isolamento total por usuário.
+          Explore o catálogo cinematográfico integrado à API da TMDB. Salve favoritos e compartilhe anotações com persistência isolada no MariaDB.
         </p>
         <div class="hero-features">
           <div class="feature-item">
-            <span class="feature-icon">✨</span>
-            <span>Dados e pôsteres oficiais em tempo real via TMDB</span>
+            <span class="feature-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+            </span>
+            <span>Dados e metadados sincronizados em tempo real via TMDB</span>
           </div>
           <div class="feature-item">
-            <span class="feature-icon">🔐</span>
-            <span>Microsserviço de Autenticação isolado com papéis (Roles)</span>
+            <span class="feature-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+            </span>
+            <span>Autenticação em microsserviço isolado com RBAC (Roles)</span>
           </div>
           <div class="feature-item">
-            <span class="feature-icon">⏱️</span>
-            <span>Recuperação de senha com expiração real de 30 minutos via e-mail</span>
+            <span class="feature-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+            </span>
+            <span>Recuperação de senha com expiração de 30 minutos por e-mail</span>
           </div>
           <div class="feature-item">
-            <span class="feature-icon">🗄️</span>
-            <span>Persistência individual no MariaDB com chave estrangeira</span>
+            <span class="feature-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"></ellipse><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path></svg>
+            </span>
+            <span>Armazenamento relacional e auditoria em Redis Streams</span>
           </div>
         </div>
       </div>
@@ -84,7 +105,9 @@
           <div class="form-group">
             <label for="login-email">E-mail</label>
             <div class="input-wrapper">
-              <span class="input-icon">✉️</span>
+              <span class="input-icon">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="20" height="16" x="2" y="4" rx="2"></rect><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"></path></svg>
+              </span>
               <input type="email" id="login-email" class="form-control" placeholder="seu.email@exemplo.com" required autocomplete="email">
             </div>
           </div>
@@ -92,7 +115,9 @@
           <div class="form-group">
             <label for="login-senha">Senha</label>
             <div class="input-wrapper">
-              <span class="input-icon">🔑</span>
+              <span class="input-icon">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+              </span>
               <input type="password" id="login-senha" class="form-control" placeholder="••••••••" required autocomplete="current-password">
             </div>
             <div class="form-helper-right">
@@ -112,15 +137,19 @@
           <div class="form-group">
             <label for="register-nome">Nome Completo</label>
             <div class="input-wrapper">
-              <span class="input-icon">👤</span>
-              <input type="text" id="register-nome" class="form-control" placeholder="Ex: Allan Siriani" required autocomplete="name">
+              <span class="input-icon">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+              </span>
+              <input type="text" id="register-nome" class="form-control" placeholder="Ex: Felipe Shida" required autocomplete="name">
             </div>
           </div>
 
           <div class="form-group">
             <label for="register-email">E-mail</label>
             <div class="input-wrapper">
-              <span class="input-icon">✉️</span>
+              <span class="input-icon">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="20" height="16" x="2" y="4" rx="2"></rect><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"></path></svg>
+              </span>
               <input type="email" id="register-email" class="form-control" placeholder="seu.email@exemplo.com" required autocomplete="email">
             </div>
           </div>
@@ -128,7 +157,9 @@
           <div class="form-group">
             <label for="register-role">Papel do Usuário (Role)</label>
             <div class="input-wrapper">
-              <span class="input-icon">🛡️</span>
+              <span class="input-icon">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+              </span>
               <select id="register-role" class="form-control">
                 <option value="usuario" selected>Usuário (Padrão)</option>
                 <option value="admin">Administrador (Admin)</option>
@@ -139,7 +170,9 @@
           <div class="form-group">
             <label for="register-senha">Senha de Acesso</label>
             <div class="input-wrapper">
-              <span class="input-icon">🔑</span>
+              <span class="input-icon">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+              </span>
               <input type="password" id="register-senha" class="form-control" placeholder="Mínimo 4 caracteres" required autocomplete="new-password">
             </div>
           </div>
@@ -154,14 +187,16 @@
           <div class="auth-form-header">
             <h3 class="auth-sub-title">Recuperação de Senha</h3>
             <p class="auth-sub-desc">
-              Informe seu e-mail cadastrado. Um link de redefinição de senha com validade de <strong>30 minutos</strong> será enviado.
+              Informe seu e-mail cadastrado. Um link de redefinição com validade de <strong>30 minutos</strong> será enviado.
             </p>
           </div>
 
           <div class="form-group">
             <label for="forgot-email">E-mail Cadastrado</label>
             <div class="input-wrapper">
-              <span class="input-icon">✉️</span>
+              <span class="input-icon">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="20" height="16" x="2" y="4" rx="2"></rect><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"></path></svg>
+              </span>
               <input type="email" id="forgot-email" class="form-control" placeholder="seu.email@exemplo.com" required autocomplete="email">
             </div>
           </div>
@@ -187,7 +222,9 @@
           <div class="form-group">
             <label for="reset-nova-senha">Nova Senha</label>
             <div class="input-wrapper">
-              <span class="input-icon">🔑</span>
+              <span class="input-icon">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+              </span>
               <input type="password" id="reset-nova-senha" class="form-control" placeholder="Mínimo 4 caracteres" required autocomplete="new-password">
             </div>
           </div>
@@ -195,7 +232,9 @@
           <div class="form-group">
             <label for="reset-confirma-senha">Confirmar Nova Senha</label>
             <div class="input-wrapper">
-              <span class="input-icon">🔒</span>
+              <span class="input-icon">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+              </span>
               <input type="password" id="reset-confirma-senha" class="form-control" placeholder="Repita a nova senha" required autocomplete="new-password">
             </div>
           </div>
@@ -226,7 +265,7 @@
       <section class="catalog-header">
         <div class="catalog-title-area">
           <h2 class="catalog-heading">Filmes com <span class="text-gold">Tom Hanks</span></h2>
-          <p class="catalog-subheading">Pôsteres, títulos e sinopses carregados ao vivo da API TMDB</p>
+          <p class="catalog-subheading">Catálogo de títulos, pôsteres e sinopses integrados à API da TMDB</p>
         </div>
 
         <!-- Filter Controls -->
@@ -234,12 +273,16 @@
           <!-- View Tabs (Todos / Favoritos) -->
           <div class="filter-tabs">
             <button id="filter-all" class="filter-btn active" data-filter="all">
-              <span class="icon">🎬</span>
+              <span class="filter-icon">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="18" x="3" y="3" rx="2"></rect><path d="m9 8 6 4-6 4Z"></path></svg>
+              </span>
               <span>Todos os Filmes</span>
               <span id="badge-all-count" class="counter-badge">0</span>
             </button>
             <button id="filter-favorites" class="filter-btn" data-filter="favorites">
-              <span class="icon">⭐</span>
+              <span class="filter-icon">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+              </span>
               <span>Meus Favoritos</span>
               <span id="badge-fav-count" class="counter-badge">0</span>
             </button>
@@ -248,9 +291,11 @@
           <!-- Search and Sort -->
           <div class="search-sort-group">
             <div class="search-box">
-              <span class="search-icon">🔍</span>
+              <span class="search-icon">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.3-4.3"></path></svg>
+              </span>
               <input type="text" id="input-search" class="form-control search-input" placeholder="Buscar por título ou personagem...">
-              <button id="btn-clear-search" class="btn-clear hidden" title="Limpar busca">×</button>
+              <button id="btn-clear-search" class="btn-clear hidden" title="Limpar busca">&times;</button>
             </div>
 
             <div class="sort-box">
@@ -271,12 +316,14 @@
       <!-- Loading State -->
       <div id="loading-state" class="loading-state">
         <div class="spinner"></div>
-        <p>Consultando a API da TMDB e seu banco MariaDB...</p>
+        <p>Consultando a API da TMDB e o banco de dados...</p>
       </div>
 
       <!-- Empty State -->
       <div id="empty-state" class="empty-state hidden">
-        <span class="empty-icon">🍿</span>
+        <div class="empty-icon">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect width="18" height="18" x="3" y="3" rx="2"></rect><path d="m9 8 6 4-6 4Z"></path></svg>
+        </div>
         <h3 id="empty-title" class="empty-title">Nenhum filme encontrado</h3>
         <p id="empty-desc" class="empty-desc">Tente ajustar seus termos de busca ou filtros.</p>
       </div>
@@ -305,15 +352,15 @@
 
         <div class="modal-body">
           <div class="privacy-note">
-            <span>💬</span>
-            <p><strong>Comentários da Comunidade:</strong> Compartilhe suas impressões com outros usuários do catálogo.</p>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+            <p><strong>Comentários da Comunidade:</strong> Compartilhe impressões e anotações com outros usuários do catálogo.</p>
           </div>
 
           <!-- Add Comment Form -->
           <form id="form-add-comment" class="comment-form">
             <div class="form-group">
               <label for="comment-text">Adicionar comentário sobre este filme:</label>
-              <textarea id="comment-text" class="form-control comment-textarea" rows="3" placeholder="Ex: Uma das melhores atuações do Tom Hanks! A cena do banco na praça é inesquecível..." required></textarea>
+              <textarea id="comment-text" class="form-control comment-textarea" rows="3" placeholder="Escreva suas impressões sobre o filme ou atuação..." required></textarea>
             </div>
             <div class="form-action-right">
               <button type="submit" id="btn-save-comment" class="btn btn-primary btn-sm">
@@ -346,84 +393,90 @@
           <button id="btn-close-profile-modal" class="modal-close-btn" title="Fechar">&times;</button>
         </div>
 
-      <div class="modal-body profile-modal-body">
-        <!-- Profile Header / Identity -->
-        <div class="profile-hero-card">
-          <div class="profile-avatar-wrapper">
-            <div class="profile-avatar-circle">
-              <img id="profile-avatar-img" class="profile-avatar-img hidden" alt="Foto de perfil">
-              <span id="profile-avatar-fallback" class="profile-avatar-fallback">👤</span>
+        <div class="modal-body profile-modal-body">
+          <!-- Profile Header / Identity -->
+          <div class="profile-hero-card">
+            <div class="profile-avatar-wrapper">
+              <div class="profile-avatar-circle">
+                <img id="profile-avatar-img" class="profile-avatar-img hidden" alt="Foto de perfil">
+                <span id="profile-avatar-fallback" class="profile-avatar-fallback">
+                  <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                </span>
+              </div>
+              
+              <!-- Upload controls (only visible if is_owner) -->
+              <div id="profile-photo-controls" class="profile-photo-controls hidden">
+                <input type="file" id="input-profile-photo" accept="image/jpeg,image/png,image/webp,image/gif" class="hidden">
+                <label for="input-profile-photo" id="lbl-upload-photo" class="btn btn-sm btn-outline-gold" title="Enviar nova foto para o MinIO">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
+                  Alterar Foto
+                </label>
+                <div id="upload-photo-spinner" class="spinner-sm hidden"></div>
+              </div>
             </div>
-            
-            <!-- Upload controls (only visible if is_owner) -->
-            <div id="profile-photo-controls" class="profile-photo-controls hidden">
-              <input type="file" id="input-profile-photo" accept="image/jpeg,image/png,image/webp,image/gif" class="hidden">
-              <label for="input-profile-photo" id="lbl-upload-photo" class="btn btn-sm btn-outline-gold" title="Enviar nova foto para o MinIO">
-                📷 Alterar Foto
-              </label>
-              <div id="upload-photo-spinner" class="spinner-sm hidden"></div>
+
+            <div class="profile-identity">
+              <div class="profile-name-row">
+                <h2 id="profile-display-name" class="profile-name">Nome do Usuário</h2>
+                <span id="profile-role-badge" class="user-role-badge">usuario</span>
+              </div>
+              <p id="profile-email" class="profile-email text-muted text-xs"></p>
+              <p id="profile-created-at" class="profile-created text-muted text-xs"></p>
+
+              <!-- Bio display mode -->
+              <div id="profile-bio-container" class="profile-bio-container">
+                <p id="profile-bio-text" class="profile-bio-text">Sem biografia cadastrada ainda.</p>
+              </div>
+
+              <!-- Edit Button (only visible if is_owner) -->
+              <div id="profile-owner-actions" class="profile-owner-actions hidden">
+                <button type="button" id="btn-toggle-edit-profile" class="btn btn-sm btn-outline">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                  Editar Dados
+                </button>
+              </div>
             </div>
           </div>
 
-          <div class="profile-identity">
-            <div class="profile-name-row">
-              <h2 id="profile-display-name" class="profile-name">Nome do Usuário</h2>
-              <span id="profile-role-badge" class="user-role-badge">usuario</span>
+          <!-- Form Edit Profile (Hidden by default, toggled on edit) -->
+          <form id="form-edit-profile" class="profile-edit-form hidden">
+            <div class="form-group">
+              <label for="edit-profile-name">Nome Completo</label>
+              <input type="text" id="edit-profile-name" class="form-control" required minlength="2" maxlength="100">
             </div>
-            <p id="profile-email" class="profile-email text-muted text-xs"></p>
-            <p id="profile-created-at" class="profile-created text-muted text-xs"></p>
-
-            <!-- Bio display mode -->
-            <div id="profile-bio-container" class="profile-bio-container">
-              <p id="profile-bio-text" class="profile-bio-text">Sem bio cadastrada ainda.</p>
+            <div class="form-group">
+              <div class="label-with-counter">
+                <label for="edit-profile-bio">Bio / Sobre Você</label>
+                <span id="edit-bio-counter" class="char-counter">0/500</span>
+              </div>
+              <textarea id="edit-profile-bio" class="form-control" rows="3" maxlength="500" placeholder="Conte um pouco sobre suas preferências de filmes..."></textarea>
             </div>
-
-            <!-- Edit Button (only visible if is_owner) -->
-            <div id="profile-owner-actions" class="profile-owner-actions hidden">
-              <button type="button" id="btn-toggle-edit-profile" class="btn btn-sm btn-outline">
-                ✏️ Editar Dados
+            <div class="profile-edit-buttons">
+              <button type="submit" id="btn-save-profile" class="btn btn-primary btn-sm">
+                <span>Salvar Alterações</span>
+              </button>
+              <button type="button" id="btn-cancel-edit-profile" class="btn btn-outline btn-sm">
+                Cancelar
               </button>
             </div>
-          </div>
-        </div>
+          </form>
 
-        <!-- Form Edit Profile (Hidden by default, toggled on edit) -->
-        <form id="form-edit-profile" class="profile-edit-form hidden">
-          <div class="form-group">
-            <label for="edit-profile-name">Nome Completo</label>
-            <input type="text" id="edit-profile-name" class="form-control" required minlength="2" maxlength="100">
-          </div>
-          <div class="form-group">
-            <div class="label-with-counter">
-              <label for="edit-profile-bio">Bio / Sobre Você</label>
-              <span id="edit-bio-counter" class="char-counter">0/500</span>
+          <div id="profile-alert" class="alert hidden"></div>
+
+          <hr class="modal-divider">
+
+          <!-- Favorited Movies Section -->
+          <div class="profile-favorites-section">
+            <h4 class="profile-section-title">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="color: var(--accent-gold); vertical-align: -2px;"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+              Filmes Favoritados (<span id="profile-favs-count">0</span>)
+            </h4>
+            <div id="profile-favs-list" class="profile-favs-grid">
+              <!-- Favorite movies rendered here -->
             </div>
-            <textarea id="edit-profile-bio" class="form-control" rows="3" maxlength="500" placeholder="Conte um pouco sobre suas preferências de filmes..."></textarea>
-          </div>
-          <div class="profile-edit-buttons">
-            <button type="submit" id="btn-save-profile" class="btn btn-primary btn-sm">
-              <span>Salvar Alterações</span>
-            </button>
-            <button type="button" id="btn-cancel-edit-profile" class="btn btn-outline btn-sm">
-              Cancelar
-            </button>
-          </div>
-        </form>
-
-        <div id="profile-alert" class="alert hidden"></div>
-
-        <hr class="modal-divider">
-
-        <!-- Favorited Movies Section -->
-        <div class="profile-favorites-section">
-          <h4 class="profile-section-title">
-            ⭐ Filmes Favoritados (<span id="profile-favs-count">0</span>)
-          </h4>
-          <div id="profile-favs-list" class="profile-favs-grid">
-            <!-- Favorite movies rendered here -->
-          </div>
-          <div id="profile-favs-empty" class="text-center text-muted text-xs hidden" style="padding: 1.5rem 0;">
-            Nenhum filme favoritado ainda.
+            <div id="profile-favs-empty" class="text-center text-muted text-xs hidden" style="padding: 1.5rem 0;">
+              Nenhum filme favoritado ainda.
+            </div>
           </div>
         </div>
       </div>
@@ -434,8 +487,8 @@
   <div id="toast-container" class="toast-container"></div>
 
   <!-- Scripts -->
-  <script type="module" src="js/api.js?v=2.0.1"></script>
-  <script type="module" src="js/auth.js?v=2.0.1"></script>
-  <script type="module" src="js/app.js?v=2.0.1"></script>
+  <script type="module" src="js/api.js?v=2.0.2"></script>
+  <script type="module" src="js/auth.js?v=2.0.2"></script>
+  <script type="module" src="js/app.js?v=2.0.2"></script>
 </body>
 </html>

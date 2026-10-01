@@ -82,11 +82,15 @@ export function showToast(message, type = 'info') {
   const toast = document.createElement('div');
   toast.className = `toast toast-${type}`;
   
-  let icon = 'ℹ️';
-  if (type === 'success') icon = '✅';
-  if (type === 'error') icon = '❌';
+  let iconSvg = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>';
+  if (type === 'success') {
+    iconSvg = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>';
+  }
+  if (type === 'error') {
+    iconSvg = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>';
+  }
 
-  toast.innerHTML = `<span>${icon}</span> <span>${message}</span>`;
+  toast.innerHTML = `<span class="toast-icon-wrapper">${iconSvg}</span> <span>${message}</span>`;
   toastContainer.appendChild(toast);
 
   setTimeout(() => {
@@ -199,7 +203,7 @@ function renderCatalog() {
     emptyState.classList.remove('hidden');
     if (currentFilter === 'favorites') {
       emptyTitle.textContent = 'Nenhum filme favoritado';
-      emptyDesc.textContent = 'Clique na estrela ⭐ de qualquer filme para adicioná-lo aos seus favoritos.';
+      emptyDesc.textContent = 'Clique no botão de favoritar em qualquer filme para adicioná-lo aos seus favoritos.';
     } else {
       emptyTitle.textContent = 'Nenhum filme encontrado';
       emptyDesc.textContent = `Nenhum resultado para a busca "${currentSearch}".`;
@@ -214,12 +218,20 @@ function renderCatalog() {
     card.className = 'movie-card';
     card.dataset.movieId = movie.id;
 
+    const posterFallback = `<div class="poster-fallback">
+      <svg class="poster-fallback-icon" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect width="18" height="18" x="3" y="3" rx="2"></rect><path d="m9 8 6 4-6 4Z"></path></svg>
+      <span>Sem pôster</span>
+    </div>`;
+
     const posterMarkup = movie.poster_url
-      ? `<img src="${movie.poster_url}" alt="${movie.title}" class="movie-poster" loading="lazy" onerror="this.parentElement.innerHTML='<div class=\\'poster-fallback\\'><span class=\\'poster-fallback-icon\\'>🎬</span><span>Sem pôster</span></div>'">`
-      : `<div class="poster-fallback"><span class="poster-fallback-icon">🎬</span><span>Sem pôster</span></div>`;
+      ? `<img src="${movie.poster_url}" alt="${movie.title}" class="movie-poster" loading="lazy" onerror="this.parentElement.innerHTML=\`${posterFallback}\`">`
+      : posterFallback;
 
     const ratingBadge = movie.vote_average > 0
-      ? `<div class="badge-rating">⭐ ${movie.vote_average.toFixed(1)}</div>`
+      ? `<div class="badge-rating">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+          ${movie.vote_average.toFixed(1)}
+        </div>`
       : '';
 
     const yearBadge = movie.release_year && movie.release_year !== 'N/A'
@@ -227,11 +239,15 @@ function renderCatalog() {
       : '';
 
     const characterText = movie.character
-      ? `<div class="movie-character">🎭 ${escapeHtml(movie.character)}</div>`
+      ? `<div class="movie-character">como ${escapeHtml(movie.character)}</div>`
       : '';
 
+    const favIconSvg = movie.is_favorite
+      ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>'
+      : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>';
+
     const favButtonClass = movie.is_favorite ? 'btn-action btn-fav is-favorite' : 'btn-action btn-fav';
-    const favButtonText = movie.is_favorite ? '⭐ Favorito' : '☆ Favoritar';
+    const favButtonText = movie.is_favorite ? 'Favorito' : 'Favoritar';
 
     card.innerHTML = `
       <div class="poster-container">
@@ -245,10 +261,13 @@ function renderCatalog() {
         <p class="movie-synopsis">${escapeHtml(movie.overview)}</p>
         <div class="movie-actions">
           <button class="${favButtonClass}" data-action="toggle-fav" title="Favoritar este filme">
-            ${favButtonText}
+            ${favIconSvg}
+            <span>${favButtonText}</span>
           </button>
           <button class="btn-action btn-comments" data-action="open-comments" title="Ver ou adicionar comentários">
-            💬 Notas <span class="badge comments-badge">${movie.comments_count || 0}</span>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+            <span>Notas</span>
+            <span class="badge comments-badge">${movie.comments_count || 0}</span>
           </button>
         </div>
       </div>
@@ -387,18 +406,20 @@ function renderModalComments(comments) {
       ? `${escapeHtml(comment.autor_nome || 'Você')} (Você)`
       : escapeHtml(comment.autor_nome || 'Usuário');
 
-    const authorBadge = ` • 👤 <button type="button" class="comment-author-btn" data-author-id="${comment.usuario_id}" title="Ver perfil de ${authorDisplay}"><strong>${authorDisplay}</strong></button>`;
+    const authorBadge = ` • <button type="button" class="comment-author-btn" data-author-id="${comment.usuario_id}" title="Ver perfil de ${authorDisplay}"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: -1px; margin-right: 3px;"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg><strong>${authorDisplay}</strong></button>`;
 
     const deleteBtnHtml = canDelete
       ? `<button class="btn-delete-comment" title="${isOwn ? 'Excluir seu comentário' : 'Excluir comentário (Moderação)'}" data-comment-id="${comment.id}">
-          🗑️
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
         </button>`
       : '';
 
     item.innerHTML = `
       <div class="comment-item-content">
         <p class="comment-text">${escapeHtml(comment.texto)}</p>
-        <div class="comment-date">📅 ${formatDate(comment.criado_em)}${authorBadge}</div>
+        <div class="comment-date">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: -1px; margin-right: 3px;"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>${formatDate(comment.criado_em)}${authorBadge}
+        </div>
       </div>
       ${deleteBtnHtml}
     `;
@@ -516,11 +537,13 @@ function renderProfileData(profile) {
   }
   if (profileDisplayName) profileDisplayName.textContent = profile.nome;
   if (profileEmail) {
-    profileEmail.textContent = profile.email ? `✉️ ${profile.email}` : '';
+    profileEmail.innerHTML = profile.email
+      ? `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: -2px; margin-right: 4px;"><rect width="20" height="16" x="2" y="4" rx="2"></rect><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"></path></svg>${escapeHtml(profile.email)}`
+      : '';
   }
   if (profileCreatedAt) {
-    profileCreatedAt.textContent = profile.criado_em
-      ? `📅 Membro desde ${formatDate(profile.criado_em).split(' ')[0]}`
+    profileCreatedAt.innerHTML = profile.criado_em
+      ? `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: -2px; margin-right: 4px;"><rect width="18" height="18" x="3" y="4" rx="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>Membro desde ${formatDate(profile.criado_em).split(' ')[0]}`
       : '';
   }
 
@@ -591,7 +614,10 @@ function renderProfileFavorites(favorites) {
       <div class="profile-fav-info">
         <span class="profile-fav-title">${escapeHtml(fav.titulo)}</span>
         <div class="profile-fav-meta">
-          <span>💬 ${fav.comments_count || 0}</span>
+          <span style="display: inline-flex; align-items: center; gap: 4px;">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+            ${fav.comments_count || 0}
+          </span>
         </div>
       </div>
     `;
