@@ -578,6 +578,17 @@ function renderProfileData(profile) {
       editProfileBio.value = profile.bio || '';
       if (editBioCounter) editBioCounter.textContent = `${(profile.bio || '').length}/500`;
     }
+
+    // Sincroniza foto no navbar e no cache local
+    if (profile.foto_url) {
+      updateNavUserAvatar(profile.foto_url);
+      const user = api.getUser();
+      if (user) {
+        user.foto_url = profile.foto_url;
+        user.foto_perfil = profile.foto_perfil;
+        api.setUser(user);
+      }
+    }
   } else {
     profilePhotoControls?.classList.add('hidden');
     profileOwnerActions?.classList.add('hidden');

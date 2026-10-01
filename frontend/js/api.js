@@ -100,7 +100,11 @@ export const api = {
   },
 
   async me() {
-    return this.request('/auth/me');
+    const data = await this.request('/auth/me');
+    if (data && data.user) {
+      this.setUser(data.user);
+    }
+    return data;
   },
 
   async logout() {

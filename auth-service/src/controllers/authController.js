@@ -48,7 +48,10 @@ export async function register(req, res) {
       id: result.insertId,
       nome: nome.trim(),
       email: emailNorm,
-      role: userRole
+      role: userRole,
+      bio: null,
+      foto_perfil: null,
+      foto_url: null
     };
 
     const token = generateToken(user);
@@ -88,7 +91,7 @@ export async function login(req, res) {
     const emailNorm = email.trim().toLowerCase();
 
     const [rows] = await pool.query(
-      'SELECT id, nome, email, senha_hash, role FROM usuarios WHERE email = ?',
+      'SELECT id, nome, email, senha_hash, role, bio, foto_perfil, criado_em FROM usuarios WHERE email = ?',
       [emailNorm]
     );
 
@@ -107,7 +110,11 @@ export async function login(req, res) {
       id: userRecord.id,
       nome: userRecord.nome,
       email: userRecord.email,
-      role: userRecord.role || 'usuario'
+      role: userRecord.role || 'usuario',
+      bio: userRecord.bio || null,
+      foto_perfil: userRecord.foto_perfil || null,
+      foto_url: userRecord.foto_perfil ? `/api/profile/photo/${userRecord.foto_perfil}` : null,
+      criado_em: userRecord.criado_em
     };
 
     const token = generateToken(user);
@@ -157,8 +164,20 @@ export async function me(req, res) {
       return res.status(404).json({ error: 'Usuário não encontrado.' });
     }
 
+    const record = rows[0];
+    const user = {
+      id: record.id,
+      nome: record.nome,
+      email: record.email,
+      role: record.role || 'usuario',
+      bio: record.bio || null,
+      foto_perfil: record.foto_perfil || null,
+      foto_url: record.foto_perfil ? `/api/profile/photo/${record.foto_perfil}` : null,
+      criado_em: record.criado_em
+    };
+
     return res.json({
-      user: rows[0]
+      user
     });
   } catch (err) {
     console.error('[Auth-Service] Erro ao consultar perfil:', err);

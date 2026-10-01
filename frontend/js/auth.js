@@ -102,9 +102,18 @@ export function updateNavUserAvatar(fotoUrl) {
   if (navUserAvatar && navAvatarIcon) {
     if (fotoUrl) {
       navUserAvatar.src = fotoUrl;
+      navUserAvatar.onerror = () => {
+        navUserAvatar.classList.add('hidden');
+        navAvatarIcon.classList.remove('hidden');
+      };
+      navUserAvatar.onload = () => {
+        navUserAvatar.classList.remove('hidden');
+        navAvatarIcon.classList.add('hidden');
+      };
       navUserAvatar.classList.remove('hidden');
       navAvatarIcon.classList.add('hidden');
     } else {
+      navUserAvatar.removeAttribute('src');
       navUserAvatar.classList.add('hidden');
       navAvatarIcon.classList.remove('hidden');
     }
@@ -320,10 +329,15 @@ export async function initAuth() {
   const user = api.getUser();
 
   if (token && user) {
+    // Renderiza a interface imediatamente com o cache local (evita sumir a foto no reload)
+    showAppView(user);
+
     try {
       const res = await api.me();
-      showAppView(res.user);
-      window.dispatchEvent(new CustomEvent('auth:login', { detail: res.user }));
+      if (res && res.user) {
+        showAppView(res.user);
+        window.dispatchEvent(new CustomEvent('auth:login', { detail: res.user }));
+      }
     } catch {
       api.clearSession();
       showAuthView();
