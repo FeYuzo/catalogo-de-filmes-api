@@ -346,6 +346,37 @@ A ação exclusiva implementada é a **Moderação de Comentários** (`DELETE /a
 
 ---
 
+### 📸 Comparativo Visual de Permissões: Administrador vs. Usuário Comum
+
+Abaixo está o comparativo em tempo real demonstrando a diferença prática de privilégios entre os dois papéis no ambiente de produção (`felipe-shida-isw055.lapps.studio`):
+
+#### 👑 Visão 1: Administrador (`role: 'admin'`) — Moderação Habilitada
+O usuário autenticado com privilégios de **ADMIN** tem permissão de moderação global sobre todo o conteúdo gerado pela comunidade.
+
+<p align="center">
+  <img src="./docs/evidencias/07-rbac-visao-administrador-moderacao.png" alt="Visão do Administrador com Botões de Moderação em Todos os Comentários" width="90%" />
+</p>
+
+> **O que esta imagem comprova:**
+> * O Administrador visualiza o **ícone de lixeira (exclusão/moderação)** em **todos** os comentários listados (comentários de `felipe teste 3`, `teste4` e seu próprio comentário).
+> * Isso comprova a concessão da permissão `comentarios:excluir_qualquer`, permitindo a remoção de conteúdos inadequados de terceiros.
+
+---
+
+#### 👤 Visão 2: Usuário Comum (`role: 'usuario'`) — Sem Permissão de Moderação
+O usuário comum possui permissão apenas de leitura e publicação, sem privilégios para apagar mensagens de outros membros.
+
+<p align="center">
+  <img src="./docs/evidencias/08-rbac-visao-usuario-comum-sem-moderacao.png" alt="Visão do Usuário Comum sem Botões de Moderação em Comentários de Terceiros" width="90%" />
+</p>
+
+> **O que esta imagem comprova:**
+> * Os comentários publicados por outros membros da comunidade **não exibem o botão de lixeira** para o usuário comum.
+> * O usuário comum só tem permissão para apagar seus próprios comentários (`comentarios:excluir_proprio`).
+> * Caso tente forçar uma requisição `DELETE` para o comentário de outro usuário via cURL ou DevTools, o backend executa o enforcement e retorna **HTTP 403 Forbidden**.
+
+---
+
 ### 3. Roteiro de Demonstração (cURL Passo a Passo)
 
 Para evidenciar o enforcement no servidor e capturar os prints solicitados, execute a sequência abaixo em seu terminal:
@@ -679,6 +710,26 @@ Para comprovar que a persistência está ocorrendo diretamente na estrutura de d
 docker compose exec redis redis-cli XRANGE audit:events - +
 ```
 Você verá a árvore nativa de Streams do Redis com cada entrada contendo seus campos `usuario_id`, `acao`, `timestamp`, `ip` e `detalhes`.
+
+---
+
+### 📸 Evidência Visual da Auditoria em Tempo Real (Console DevTools / Redis Streams)
+
+Abaixo está o registro da auditoria em tempo real sendo consultada diretamente na aplicação em produção (`felipe-shida-isw055.lapps.studio`) através das ferramentas do desenvolvedor (F12 — Console):
+
+<p align="center">
+  <img src="./docs/evidencias/06-logs-auditoria-redis-streams.png" alt="Consulta de Logs de Auditoria no Redis Streams via Console DevTools" width="95%" />
+</p>
+
+> **O que esta imagem comprova:**
+> * **Identidade & Autorização:** Usuário autenticado como Administrador (**Felipe Shida `[ADMIN]`**), com privilégios para consumir a rota protegida `GET /api/logs`.
+> * **Volume de Auditoria no Redis Streams:** O stream `audit:events` acumulando dezenas de registros reais (`total_in_stream: 79`), demonstrando a persistência contínua e imutável dos eventos.
+> * **Rastreabilidade Completa (Quem, O quê, Quando e Onde):** Cada entrada do array `logs` traz detalhadamente:
+>   * `id`: Identificador monotônico nativo do Redis (ex: `1790967459647-1`).
+>   * `acao`: Tipo da operação (`login`, `logout`, `favoritar_filme`, etc.).
+>   * `usuario_id` e `detalhes`: Identificação da conta (`felipeshida8@gmail.com`) e papel (`admin`).
+>   * `ip`: Endereço IP do cliente (`192.168.144.6`).
+>   * `timestamp`: Carimbo de data/hora preciso no padrão UTC (ISO 8601).
 
 ---
 
