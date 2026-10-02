@@ -135,18 +135,105 @@ CREATE TABLE IF NOT EXISTS comentarios (
 
 ---
 
-## 🔑 Fluxo de Recuperação de Senha ("Esqueci Minha Senha")
+## 🔑 Fluxo de Recuperação de Senha ("Esqueci Minha Senha") & Evidências
 
-1. **Solicitação**: O usuário informa seu e-mail no catálogo (`POST /api/auth/forgot-password`).
-2. **Geração Segura**: O `auth-service` gera um token criptograficamente seguro de 32 bytes (`crypto.randomBytes(32).toString('hex')`).
-3. **Expiração Real**: O token é salvo na tabela `reset_tokens` com `expira_em = NOW() + 30 MINUTOS` e `usado = FALSE`.
-4. **Envio Transacional**: O `auth-service` envia um e-mail formatado via SMTP (Mailtrap/Brevo) com o link:
-   `${APP_URL}/?reset_token=${token}`
-5. **Validação em 3 Etapas**: Quando o usuário clica no link e submete a nova senha:
-   - **O token existe?**
-   - **O token ainda não expirou?** (`NOW() <= expira_em`)
-   - **O token ainda não foi usado?** (`usado == FALSE`)
-6. **Atualização**: Se todas as 3 validações passarem, a senha é re-hasheada e gravada, e o token é marcado como `usado = TRUE` (bloqueando qualquer tentativa de reuso).
+O sistema conta com um ciclo de vida robusto e seguro para recuperação de credenciais, implementado no microsserviço isolado de autenticação (`auth-service`) com envio real de e-mails transacionais via SMTP (Mailtrap em homologação e Brevo em produção), garantindo proteção contra ataques de repetição (*replay attacks*) e sequestro de sessão.
+
+### 📐 Diagrama de Sequência do Fluxo
+
+```
+[ Usuário / Browser ]        [ Catálogo (:3000) ]        [ Auth-Service (:4000) ]        [ MariaDB ]         [ SMTP (Mailtrap) ]
+        │                             │                             │                         │                       │
+        │ 1. Informa e-mail           │                             │                         │                       │
+        ├────────────────────────────►│ 2. POST /forgot-password    │                         │                       │
+        │                             ├────────────────────────────►│ 3. Gera token 32 bytes   │                       │
+        │                             │                             ├────────────────────────►│                       │
+        │                             │                             │    Salva token com      │                       │
+        │                             │                             │    expira_em = NOW()+30m│                       │
+        │                             │                             │    e usado = FALSE      │                       │
+        │                             │                             │                         │ 4. Envia e-mail       │
+        │                             │                             ├────────────────────────────────────────────────►│
+        │                             │◄────────────────────────────┤                         │                       │
+        │◄────────────────────────────┤ 5. Resposta: E-mail enviado │                         │                       │
+        │                             │                             │                         │                       │
+        │ 6. Abre e-mail e clica no link (?reset_token=TOKEN)       │                         │                       │
+        ├─────────────────────────────┴─────────────────────────────┼─────────────────────────┼──────────────────────►│
+        │                             │                             │                         │                       │
+        │ 7. Digita e submete nova senha                            │                         │                       │
+        ├────────────────────────────►│ 8. POST /reset-password     │                         │                       │
+        │                             ├────────────────────────────►│ 9. Validação 3 Etapas:   │                       │
+        │                             │                             ├────────────────────────►│                       │
+        │                             │                             │    a) Token existe?     │                       │
+        │                             │                             │    b) NOW() <= expira?  │                       │
+        │                             │                             │    c) usado == FALSE?   │                       │
+        │                             │                             │                         │                       │
+        │                             │                             │ 10. Atualiza senha_hash │                       │
+        │                             │                             │     e marca usado=TRUE  │                       │
+        │                             │                             ├────────────────────────►│                       │
+        │                             │◄────────────────────────────┤                         │                       │
+        │◄────────────────────────────┤ 11. Senha alterada! Sucesso │                         │                       │
+```
+
+---
+
+### 📋 Detalhamento Passo a Passo
+
+1. **Solicitação no Frontend**: O usuário clica em *"Esqueceu a senha?"* na tela de login e informa seu e-mail cadastrado (`POST /api/auth/forgot-password`).
+2. **Geração Criptográfica e Expiração Real**: O `auth-service` gera um token de alta entropia de 32 bytes (`crypto.randomBytes(32).toString('hex')`) e persiste na tabela `reset_tokens` do MariaDB com validade estrita de **30 minutos** (`expira_em = NOW() + INTERVAL 30 MINUTE`) e flag de uso único `usado = FALSE`.
+3. **Envio Transacional via SMTP**: O `auth-service` despacha um e-mail com template HTML responsivo através do **Mailtrap**, contendo o link único `${APP_URL}/?reset_token=${token}`.
+4. **Validação em Três Camadas no Servidor**: Ao acessar o link e submeter a nova senha (`POST /api/auth/reset-password`), o backend valida obrigatoriamente:
+   * **Existência**: O token informado existe no banco de dados.
+   * **Temporalidade**: O token não está expirado (`NOW() <= expira_em`). Tokens com mais de 30 minutos são recusados imediatamente.
+   * **Uso Único**: O token não foi consumido anteriormente (`usado == FALSE`).
+5. **Aplicação do Novo Hash e Invalidação Atômica**: A nova senha é criptografada com **Bcrypt** e gravada no MariaDB. Na mesma operação transacional, o token é atualizado para `usado = TRUE`, bloqueando permanentemente qualquer tentativa de reutilização.
+
+---
+
+### 📸 Evidências Visuais da Execução (Homologação / Produção)
+
+Abaixo estão registradas as evidências reais de funcionamento do fluxo completo executado no ambiente de homologação (`felipe-shida-isw055.lapps.studio`):
+
+#### 1️⃣ Etapa 1: Solicitação de Recuperação no Catálogo
+O usuário informa o e-mail cadastrado na interface pública da aplicação. O sistema despacha a requisição internamente ao `auth-service` e notifica o usuário com confirmação em tela.
+
+<p align="center">
+  <img src="./docs/evidencias/01-solicitacao-recuperacao-senha.png" alt="Solicitação de Recuperação de Senha" width="90%" />
+</p>
+
+> **O que esta imagem comprova:** A interface aceita a solicitação, valida o formulário e confirma visualmente que o link de recuperação foi gerado e enviado com validade de 30 minutos.
+
+---
+
+#### 2️⃣ Etapa 2: Recebimento do E-mail Transacional no Mailtrap
+O `auth-service` conecta-se ao servidor SMTP do **Mailtrap** e entrega a mensagem formatada em HTML com identidade visual do Catálogo de Filmes.
+
+<p align="center">
+  <img src="./docs/evidencias/02-email-transacional-mailtrap.png" alt="E-mail Recebido no Mailtrap" width="90%" />
+</p>
+
+> **O que esta imagem comprova:** A integração real do protocolo SMTP com o Mailtrap, exibindo remetente padronizado (`nao-responda@catalogofilmes.com`), destinatário real (`felipeshida8@gmail.com`), botão de redefinição e o link seguro contendo o parâmetro `reset_token=e28f7a820bdf6cd4c6153494a48c74cffe50419948eefaded3d55483975779c1`.
+
+---
+
+#### 3️⃣ Etapa 3: Formulário de Cadastro da Nova Senha
+Ao clicar no link do e-mail, a aplicação detecta o token na URL, valida seu estado e apresenta o formulário específico de redefinição de senha informando a conta alvo.
+
+<p align="center">
+  <img src="./docs/evidencias/03-formulario-redefinicao-nova-senha.png" alt="Formulário de Nova Senha" width="90%" />
+</p>
+
+> **O que esta imagem comprova:** A aplicação reconhece o contexto do token na URL, identifica a conta do usuário (`felipeshida8@gmail.com`) e disponibiliza os campos protegidos para digitação e confirmação da nova senha.
+
+---
+
+#### 4️⃣ Etapa 4: Sucesso na Redefinição e Retorno ao Login
+Após submeter a nova senha, o `auth-service` realiza a validação de segurança em 3 etapas, hasheia a nova senha com Bcrypt, marca o token como utilizado (`usado = TRUE`) e redireciona o usuário para o login.
+
+<p align="center">
+  <img src="./docs/evidencias/04-sucesso-redefinicao-login.png" alt="Confirmação de Sucesso" width="90%" />
+</p>
+
+> **O que esta imagem comprova:** A conclusão do ciclo de redefinição de credenciais com aviso de sucesso em tela ("Senha alterada com sucesso! Você já pode fazer login com a nova senha"), liberando a autenticação imediata com a nova senha cadastrada.
 
 ---
 
@@ -597,7 +684,70 @@ Você verá a árvore nativa de Streams do Redis com cada entrada contendo seus 
 
 ## 📸 Upload de Foto & Página de Perfil (Object Storage com MinIO)
 
-Esta etapa implementa a página de perfil de usuário com avatar personalizado e biografia, estabelecendo uma clara segregação arquitetural entre dados relacionais estruturados e armazenamento de objetos binários (*Object Storage*).
+Esta etapa implementa a página e o modal de perfil de usuário com avatar personalizado, biografia e histórico de favoritos, estabelecendo uma clara segregação arquitetural entre dados relacionais estruturados e armazenamento de objetos binários (*Object Storage*) via **MinIO** (100% compatível com a API AWS S3).
+
+---
+
+### 🔄 Como Funciona o Fluxo Completo de Upload de Foto
+
+```
+[ Navegador / Usuário ]              [ Catálogo (Express) ]              [ MinIO (S3 API) ]         [ MariaDB ]       [ Redis Streams ]
+          │                                     │                                 │                      │                 │
+          │ 1. Seleciona imagem e envia         │                                 │                      │                 │
+          ├────────────────────────────────────►│ 2. Multer em memória            │                      │                 │
+          │    POST /api/profile/photo          │    (MemoryStorage)              │                      │                 │
+          │    (multipart/form-data)            │                                 │                      │                 │
+          │                                     │ 3. Validação Magic Bytes        │                      │                 │
+          │                                     │    (Assinatura binária real)    │                      │                 │
+          │                                     │                                 │                      │                 │
+          │                                     │ 4. putObject (S3 SDK)           │                      │                 │
+          │                                     ├────────────────────────────────►│                      │                 │
+          │                                     │    bucket: perfil-usuarios      │                      │                 │
+          │                                     │    chave: avatars/user-1-*.png  │                      │                 │
+          │                                     │                                 │                      │                 │
+          │                                     │ 5. Grava chave textual          │                      │                 │
+          │                                     ├───────────────────────────────────────────────────────►│                 │
+          │                                     │    UPDATE usuarios SET          │                      │                 │
+          │                                     │    foto_perfil = 'avatars/...'  │                      │                 │
+          │                                     │                                 │                      │                 │
+          │                                     │ 6. Disparo assíncrono audit     │                      │                 │
+          │                                     ├────────────────────────────────────────────────────────────────────────►│
+          │                                     │    acao: upload_foto_perfil     │                      │                 │
+          │                                     │                                 │                      │                 │
+          │ 7. Retorna JSON com foto_url        │                                 │                      │                 │
+          │◄────────────────────────────────────┤                                 │                      │                 │
+          │                                     │                                 │                      │                 │
+          │ 8. Carrega imagem no avatar         │                                 │                      │                 │
+          ├────────────────────────────────────►│ 9. Streaming Proxy             │                      │                 │
+          │    GET /api/profile/photo/:key      ├────────────────────────────────►│                      │                 │
+          │                                     │◄────────────────────────────────┤                      │                 │
+          │◄────────────────────────────────────┤                                 │                      │                 │
+          │    Buffer com Cache-Control público │                                 │                      │                 │
+```
+
+#### 📋 Etapas Técnicas do Processo:
+1. **Envio em Memória (*MemoryStorage*)**: O arquivo de imagem é recebido diretamente na memória RAM via `multer.memoryStorage()`, eliminando arquivos temporários em disco e mitigando ataques de arquivos órfãos.
+2. **Validação de Segurança por *Magic Bytes***: O backend inspeciona os primeiros bytes do buffer (ex: `FF D8 FF` para JPEG, `89 50 4E 47` para PNG) antes de qualquer persistência, rejeitando arquivos adulterados ou *MIME spoofing*.
+3. **Persistência no Object Storage (MinIO)**: A imagem validada é transmitida para o bucket `perfil-usuarios` sob uma chave única determinística (`avatars/user-<id>-<timestamp>.<ext>`).
+4. **Armazenamento Leve no MariaDB**: O banco relacional grava unicamente a chave textual de referência (`VARCHAR(255)`), preservando a memória de cache (*InnoDB Buffer Pool*) e a velocidade de indexação.
+5. **Auditoria em Tempo Real**: Um evento `upload_foto_perfil` é emitido de forma não-bloqueante para o stream `audit:events` no Redis.
+6. **Entrega Otimizada (Streaming Proxy)**: A foto é servida pela rota `GET /api/profile/photo/*` no Catálogo com cabeçalhos `Cache-Control: public, max-age=86400`, permitindo cache eficiente nos navegadores sem expor portas diretas do MinIO.
+
+---
+
+### 📸 Evidência Visual da Página e Modal de Perfil de Usuário
+
+Abaixo está o registro da funcionalidade completa em execução no ambiente de homologação (`felipe-shida-isw055.lapps.studio`), demonstrando a exibição do avatar armazenado no MinIO, dados cadastrais e filmes favoritados:
+
+<p align="center">
+  <img src="./docs/evidencias/05-perfil-usuario-upload-minio.png" alt="Página e Modal de Perfil de Usuário com Upload no MinIO" width="90%" />
+</p>
+
+> **O que esta imagem comprova:**
+> * **Avatar Carregado via MinIO S3:** Exibição da foto de perfil personalizada renderizada a partir do *Object Storage* MinIO através do endpoint de streaming proxy.
+> * **Controle de Acesso & Identificação:** O usuário logado (*Felipe Shida* / `felipeshida8@gmail.com`) tem seu papel destacado com a insígnia `[ADMIN]`.
+> * **Biografia Customizada:** Apresentação da bio pessoal gravada no MariaDB (*"eu amo filmes"*), com botões de ação restritos ao proprietário da conta (`[ Alterar Foto ]` e `[ Editar Dados ]`).
+> * **Segregação de Favoritos e Interações:** Exibição dos filmes favoritados individualmente pela conta (ex: *Toy Story 30 Anos...*) com o contador de comentários da comunidade associados (`💬 3`).
 
 ---
 
