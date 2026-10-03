@@ -5,6 +5,14 @@
 
 ---
 
+## 📑 Documentação & Relatório da Avaliação (P1)
+
+- 🌐 **Projeto Typst (Online):** [https://typst.app/project/rX3EbzDLLDhKvviFphLnxH](https://typst.app/project/rX3EbzDLLDhKvviFphLnxH)
+- 📄 **Relatório em PDF:** [docs/P1.pdf](docs/P1.pdf)
+- 📁 **Pasta de Documentos & Evidências:** [docs/](docs/)
+
+---
+
 ## 📌 Sobre o Projeto
 
 Aplicação web estruturada em **Arquitetura de Microsserviços** para exibição e gerenciamento da filmografia do ator **Tom Hanks**, integrando consumo de dados em tempo real da **TMDB (The Movie Database)**, persistência no **MariaDB** com segregação por usuário, um **serviço isolado de autenticação** com gerenciamento de papéis (*roles*), recuperação de senhas por e-mail com expiração real, e um **serviço isolado de logs e auditoria (`log-service`)** com persistência em **Redis Streams** (`audit:events`) operando estritamente na rede interna do Docker.
