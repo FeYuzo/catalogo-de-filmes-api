@@ -31,7 +31,7 @@ export async function getProfile(req, res) {
 
     // 1. Busca dados do usuário no MariaDB
     const [users] = await pool.query(
-      'SELECT id, nome, email, role, bio, foto_perfil, criado_em FROM usuarios WHERE id = ?',
+      'SELECT id, nome, email, role, bio, foto_perfil, is_premium, criado_em FROM usuarios WHERE id = ?',
       [targetUserId]
     );
 
@@ -67,6 +67,7 @@ export async function getProfile(req, res) {
         nome: user.nome,
         email: (req.user?.id === user.id || req.user?.role === 'admin') ? user.email : undefined,
         role: user.role,
+        is_premium: Boolean(user.is_premium),
         bio: user.bio || '',
         foto_perfil: user.foto_perfil || null,
         foto_url: fotoProxyUrl || fotoDirectUrl || null,

@@ -197,6 +197,20 @@ function renderCatalog() {
   badgeAllCount.textContent = moviesState.length;
   badgeFavCount.textContent = totalFavs;
 
+  const badgeFavLimit = document.getElementById('badge-fav-limit');
+  const currentUser = api.getUser();
+  if (badgeFavLimit) {
+    if (currentUser?.is_premium) {
+      badgeFavLimit.textContent = ' (⭐ Ilimitado)';
+      badgeFavLimit.className = 'badge-fav-limit text-gold';
+      badgeFavLimit.classList.remove('hidden');
+    } else {
+      badgeFavLimit.textContent = ' / 5';
+      badgeFavLimit.className = 'badge-fav-limit text-muted';
+      badgeFavLimit.classList.remove('hidden');
+    }
+  }
+
   moviesGrid.innerHTML = '';
 
   if (filtered.length === 0) {
@@ -323,6 +337,21 @@ async function toggleFavorite(movie) {
     movie.is_favorite = isCurrentlyFav;
     renderCatalog();
     showToast(err.message || 'Erro ao atualizar favoritos.', 'error');
+
+    // Se atingiu o limite do plano gratuito, convida para o upgrade
+    if (err.message && (err.message.includes('limite') || err.message.includes('Premium'))) {
+      const wantUpgrade = confirm(`${err.message}\n\nDeseja assinar o Plano Premium agora por apenas R$ 9,90/mês para liberar favoritos ilimitados?`);
+      if (wantUpgrade) {
+        try {
+          const res = await api.createStripeCheckout();
+          if (res?.url) {
+            window.location.href = res.url;
+          }
+        } catch (checkoutErr) {
+          alert(checkoutErr.message || 'Erro ao abrir o checkout.');
+        }
+      }
+    }
   }
 }
 
@@ -406,7 +435,10 @@ function renderModalComments(comments) {
       ? `${escapeHtml(comment.autor_nome || 'Você')} (Você)`
       : escapeHtml(comment.autor_nome || 'Usuário');
 
-    const authorBadge = ` • <button type="button" class="comment-author-btn" data-author-id="${comment.usuario_id}" title="Ver perfil de ${authorDisplay}"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: -1px; margin-right: 3px;"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg><strong>${authorDisplay}</strong></button>`;
+    const isPremiumAuthor = Boolean(comment.autor_is_premium);
+    const premiumBadgeHtml = isPremiumAuthor ? ` <span class="comment-premium-badge">⭐ PREMIUM</span>` : '';
+
+    const authorBadge = ` • <button type="button" class="comment-author-btn" data-author-id="${comment.usuario_id}" title="Ver perfil de ${authorDisplay}"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: -1px; margin-right: 3px;"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg><strong>${authorDisplay}</strong></button>${premiumBadgeHtml}`;
 
     const deleteBtnHtml = canDelete
       ? `<button class="btn-delete-comment" title="${isOwn ? 'Excluir seu comentário' : 'Excluir comentário (Moderação)'}" data-comment-id="${comment.id}">
@@ -547,11 +579,56 @@ function renderProfileData(profile) {
       : '';
   }
 
-  // Role Badge
+  // Role & Premium Badge
   if (profileRoleBadge) {
     const role = profile.role || 'usuario';
     profileRoleBadge.textContent = role === 'admin' ? 'Admin' : 'Usuário';
     profileRoleBadge.className = `user-role-badge role-${role}`;
+  }
+
+  const profilePremiumBadge = document.getElementById('profile-premium-badge');
+  const profilePremiumCard = document.getElementById('profile-premium-card');
+  const premiumBoxTitle = document.getElementById('premium-box-title');
+  const premiumBoxDesc = document.getElementById('premium-box-desc');
+  const btnProfileSubscribe = document.getElementById('btn-profile-subscribe');
+
+  if (profile.is_premium) {
+    profilePremiumBadge?.classList.remove('hidden');
+    if (isOwner) {
+      profilePremiumCard?.classList.remove('hidden');
+      if (premiumBoxTitle) premiumBoxTitle.textContent = '⭐ Assinante Premium Ativo';
+      if (premiumBoxDesc) premiumBoxDesc.textContent = 'Você possui favoritos ilimitados e destaque exclusivo em toda a plataforma!';
+      if (btnProfileSubscribe) btnProfileSubscribe.classList.add('hidden');
+    } else {
+      profilePremiumCard?.classList.add('hidden');
+    }
+  } else {
+    profilePremiumBadge?.classList.add('hidden');
+    if (isOwner) {
+      profilePremiumCard?.classList.remove('hidden');
+      if (premiumBoxTitle) premiumBoxTitle.textContent = '⭐ Seja Assinante Premium';
+      if (premiumBoxDesc) premiumBoxDesc.textContent = 'Desbloqueie favoritos ilimitados e selo de apoiador por R$ 9,90/mês.';
+      if (btnProfileSubscribe) {
+        btnProfileSubscribe.classList.remove('hidden');
+        btnProfileSubscribe.onclick = async () => {
+          try {
+            btnProfileSubscribe.disabled = true;
+            btnProfileSubscribe.textContent = 'Iniciando checkout...';
+            const res = await api.createStripeCheckout();
+            if (res?.url) {
+              window.location.href = res.url;
+            }
+          } catch (err) {
+            alert(err.message || 'Erro ao iniciar checkout do Stripe.');
+          } finally {
+            btnProfileSubscribe.disabled = false;
+            btnProfileSubscribe.textContent = 'Assinar Premium';
+          }
+        };
+      }
+    } else {
+      profilePremiumCard?.classList.add('hidden');
+    }
   }
 
   // Foto de Perfil

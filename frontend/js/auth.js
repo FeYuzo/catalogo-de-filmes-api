@@ -10,6 +10,8 @@ const appView = document.getElementById('app-view');
 const userNav = document.getElementById('user-nav');
 const navUserName = document.getElementById('nav-user-name');
 const navUserRole = document.getElementById('nav-user-role');
+const navUserPremium = document.getElementById('nav-user-premium');
+const btnNavPremium = document.getElementById('btn-nav-premium');
 const navUserAvatar = document.getElementById('nav-user-avatar');
 const navAvatarIcon = document.getElementById('nav-avatar-icon');
 const btnLogout = document.getElementById('btn-logout');
@@ -133,8 +135,39 @@ export function showAppView(user) {
     navUserRole.className = `user-role-badge role-${role}`;
   }
 
+  // Atualiza selo e botão de Premium
+  if (user?.is_premium) {
+    navUserPremium?.classList.remove('hidden');
+    btnNavPremium?.classList.add('hidden');
+  } else {
+    navUserPremium?.classList.add('hidden');
+    btnNavPremium?.classList.remove('hidden');
+  }
+
   const photoUrl = user?.foto_url || (user?.foto_perfil ? `/api/profile/photo/${user.foto_perfil}` : null);
   updateNavUserAvatar(photoUrl);
+}
+
+export async function startStripeCheckout() {
+  try {
+    if (btnNavPremium) {
+      btnNavPremium.disabled = true;
+      btnNavPremium.textContent = 'Carregando checkout...';
+    }
+    const res = await api.createStripeCheckout();
+    if (res?.url) {
+      window.location.href = res.url;
+    } else {
+      throw new Error('URL de pagamento do Stripe não retornada.');
+    }
+  } catch (err) {
+    alert(err.message || 'Falha ao iniciar checkout do Stripe.');
+  } finally {
+    if (btnNavPremium) {
+      btnNavPremium.disabled = false;
+      btnNavPremium.textContent = '⭐ Seja Premium';
+    }
+  }
 }
 
 // ===== LOGIN =====
@@ -290,15 +323,32 @@ formRegister?.addEventListener('submit', handleRegister);
 formForgot?.addEventListener('submit', handleForgot);
 formReset?.addEventListener('submit', handleReset);
 btnLogout?.addEventListener('click', handleLogout);
+btnNavPremium?.addEventListener('click', startStripeCheckout);
 
 window.addEventListener('auth:unauthorized', () => {
   showAuthView();
 });
 
-// Inicialização: Verifica parâmetros de URL (Token de Reset) e Sessão Ativa
+// Inicialização: Verifica parâmetros de URL (Token de Reset, Pagamento Stripe) e Sessão Ativa
 export async function initAuth() {
-  // 1. Verifica se o usuário chegou clicando no link de recuperação de senha (?reset_token=...)
   const urlParams = new URLSearchParams(window.location.search);
+
+  // 1. Verifica se houve retorno de pagamento do Stripe (?payment=success ou ?payment=cancel)
+  const paymentStatus = urlParams.get('payment');
+  if (paymentStatus) {
+    window.history.replaceState({}, document.title, window.location.pathname);
+    if (paymentStatus === 'success') {
+      setTimeout(() => {
+        alert('🎉 Parabéns! Sua assinatura do Plano Premium foi confirmada com sucesso! Você agora possui favoritos ilimitados e selo exclusivo de apoiador.');
+      }, 500);
+    } else if (paymentStatus === 'cancel') {
+      setTimeout(() => {
+        alert('O checkout do Stripe foi cancelado. Você pode assinar o Plano Premium a qualquer momento.');
+      }, 500);
+    }
+  }
+
+  // 2. Verifica se o usuário chegou clicando no link de recuperação de senha (?reset_token=...)
   const resetToken = urlParams.get('reset_token');
 
   if (resetToken) {

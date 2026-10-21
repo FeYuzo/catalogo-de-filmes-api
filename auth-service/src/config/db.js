@@ -83,6 +83,27 @@ export async function initAuthDatabase(retries = 5, delayMs = 3000) {
         `);
       }
 
+      // Verifica se a coluna 'is_premium' já existe
+      const [premiumCols] = await connection.query(`SHOW COLUMNS FROM usuarios LIKE 'is_premium'`);
+      if (premiumCols.length === 0) {
+        console.log('[Auth-DB] Adicionando coluna "is_premium" na tabela usuarios...');
+        await connection.query(`ALTER TABLE usuarios ADD COLUMN is_premium BOOLEAN DEFAULT FALSE AFTER foto_perfil`);
+      }
+
+      // Verifica se a coluna 'stripe_customer_id' já existe
+      const [stripeCustCols] = await connection.query(`SHOW COLUMNS FROM usuarios LIKE 'stripe_customer_id'`);
+      if (stripeCustCols.length === 0) {
+        console.log('[Auth-DB] Adicionando coluna "stripe_customer_id" na tabela usuarios...');
+        await connection.query(`ALTER TABLE usuarios ADD COLUMN stripe_customer_id VARCHAR(255) DEFAULT NULL AFTER is_premium`);
+      }
+
+      // Verifica se a coluna 'stripe_subscription_id' já existe
+      const [stripeSubCols] = await connection.query(`SHOW COLUMNS FROM usuarios LIKE 'stripe_subscription_id'`);
+      if (stripeSubCols.length === 0) {
+        console.log('[Auth-DB] Adicionando coluna "stripe_subscription_id" na tabela usuarios...');
+        await connection.query(`ALTER TABLE usuarios ADD COLUMN stripe_subscription_id VARCHAR(255) DEFAULT NULL AFTER stripe_customer_id`);
+      }
+
       // 2. Tabela de Tokens de Recuperação de Senha (com expiração real de 30 minutos e flag de uso)
       await connection.query(`
         CREATE TABLE IF NOT EXISTS reset_tokens (

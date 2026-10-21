@@ -21,6 +21,8 @@ export async function listMovieComments(req, res) {
     const query = `
       SELECT c.id, c.usuario_id, c.tmdb_movie_id, c.texto, c.criado_em,
              u.nome AS autor_nome,
+             u.is_premium AS autor_is_premium,
+             u.foto_perfil AS autor_foto,
              IF(? = 'admin', u.email, NULL) AS autor_email
       FROM comentarios c
       LEFT JOIN usuarios u ON c.usuario_id = u.id

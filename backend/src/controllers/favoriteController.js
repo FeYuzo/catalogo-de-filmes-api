@@ -11,6 +11,9 @@ export async function listFavorites(req, res) {
   try {
     const userId = req.user.id;
 
+    const [userRows] = await pool.query('SELECT is_premium FROM usuarios WHERE id = ?', [userId]);
+    const isPremium = userRows.length > 0 && Boolean(userRows[0].is_premium);
+
     const [rows] = await pool.query(
       `SELECT f.id, f.usuario_id, f.tmdb_movie_id, f.titulo, f.poster_path, f.criado_em,
               (SELECT COUNT(*) FROM comentarios c WHERE c.tmdb_movie_id = f.tmdb_movie_id) as comments_count
@@ -28,6 +31,8 @@ export async function listFavorites(req, res) {
     return res.json({
       success: true,
       total: formattedFavorites.length,
+      is_premium: isPremium,
+      limit: isPremium ? null : 5,
       favorites: formattedFavorites
     });
   } catch (err) {
@@ -52,6 +57,49 @@ export async function addFavorite(req, res) {
     const movieId = parseInt(tmdb_movie_id, 10);
     if (isNaN(movieId)) {
       return res.status(400).json({ error: 'tmdb_movie_id deve ser um número inteiro.' });
+    }
+
+    // Regra de Negócio Premium: Usuários gratuitos podem ter no máximo 5 favoritos.
+    // Usuários com plano Premium têm favoritos ilimitados.
+    const [userRows] = await pool.query('SELECT is_premium FROM usuarios WHERE id = ?', [userId]);
+    const isPremium = userRows.length > 0 && Boolean(userRows[0].is_premium);
+
+    if (!isPremium) {
+      // Verifica se o filme já foi favoritado (atualização não conta como novo)
+      const [existingFav] = await pool.query(
+        'SELECT id FROM favoritos WHERE usuario_id = ? AND tmdb_movie_id = ?',
+        [userId, movieId]
+      );
+
+      if (existingFav.length === 0) {
+        const [countRows] = await pool.query(
+          'SELECT COUNT(*) as total FROM favoritos WHERE usuario_id = ?',
+          [userId]
+        );
+        const totalFavs = countRows[0]?.total || 0;
+        const FREE_LIMIT = 5;
+
+        if (totalFavs >= FREE_LIMIT) {
+          logAuditEvent({
+            usuario_id: userId,
+            acao: 'limite_favoritos_atingido',
+            ip: req.headers['x-forwarded-for']?.split(',')[0].trim() || req.socket?.remoteAddress || req.ip,
+            detalhes: {
+              motivo: 'plano_gratuito_limite',
+              limite: FREE_LIMIT,
+              atual: totalFavs
+            }
+          });
+
+          return res.status(403).json({
+            error: `Você atingiu o limite de ${FREE_LIMIT} filmes favoritos do Plano Gratuito. Assine o Plano Premium para ter favoritos ilimitados!`,
+            code: 'PREMIUM_REQUIRED',
+            limit: FREE_LIMIT,
+            current: totalFavs,
+            is_premium: false
+          });
+        }
+      }
     }
 
     // Insere ou atualiza caso já exista

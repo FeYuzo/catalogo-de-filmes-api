@@ -209,5 +209,16 @@ export const api = {
       method: 'POST',
       body: formData
     });
+  },
+
+  // ===== STRIPE (PLANO PREMIUM) =====
+  async createStripeCheckout() {
+    return this.request('/stripe/create-checkout-session', {
+      method: 'POST'
+    });
+  },
+
+  async getStripeStatus() {
+    return this.request('/stripe/status');
   }
 };

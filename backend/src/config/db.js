@@ -55,7 +55,7 @@ export async function initDatabase(retries = 5, delayMs = 3000) {
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
       `);
 
-      // Garante colunas de perfil na tabela de usuários caso existam
+      // Garante colunas de perfil e Stripe na tabela de usuários caso existam
       try {
         const [bioCols] = await connection.query(`SHOW COLUMNS FROM usuarios LIKE 'bio'`);
         if (bioCols.length === 0) {
@@ -65,8 +65,23 @@ export async function initDatabase(retries = 5, delayMs = 3000) {
         if (fotoCols.length === 0) {
           await connection.query(`ALTER TABLE usuarios ADD COLUMN foto_perfil VARCHAR(255) DEFAULT NULL AFTER bio`);
         }
-      } catch (_) {
-        // Tabela usuarios ainda não criada ou sem permissão
+        const [premiumCols] = await connection.query(`SHOW COLUMNS FROM usuarios LIKE 'is_premium'`);
+        if (premiumCols.length === 0) {
+          console.log('[Catalog-DB] Adicionando coluna "is_premium" na tabela usuarios...');
+          await connection.query(`ALTER TABLE usuarios ADD COLUMN is_premium BOOLEAN DEFAULT FALSE AFTER foto_perfil`);
+        }
+        const [stripeCustCols] = await connection.query(`SHOW COLUMNS FROM usuarios LIKE 'stripe_customer_id'`);
+        if (stripeCustCols.length === 0) {
+          console.log('[Catalog-DB] Adicionando coluna "stripe_customer_id" na tabela usuarios...');
+          await connection.query(`ALTER TABLE usuarios ADD COLUMN stripe_customer_id VARCHAR(255) DEFAULT NULL AFTER is_premium`);
+        }
+        const [stripeSubCols] = await connection.query(`SHOW COLUMNS FROM usuarios LIKE 'stripe_subscription_id'`);
+        if (stripeSubCols.length === 0) {
+          console.log('[Catalog-DB] Adicionando coluna "stripe_subscription_id" na tabela usuarios...');
+          await connection.query(`ALTER TABLE usuarios ADD COLUMN stripe_subscription_id VARCHAR(255) DEFAULT NULL AFTER stripe_customer_id`);
+        }
+      } catch (err) {
+        console.warn('[Catalog-DB] Aviso ao checar colunas da tabela usuarios:', err.message);
       }
 
       connection.release();

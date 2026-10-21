@@ -13,6 +13,7 @@ import favoriteRoutes from './routes/favoriteRoutes.js';
 import commentRoutes from './routes/commentRoutes.js';
 import auditRoutes from './routes/auditRoutes.js';
 import profileRoutes from './routes/profileRoutes.js';
+import stripeRoutes from './routes/stripeRoutes.js';
 import { initMinIO } from './config/minio.js';
 import { deleteComment } from './controllers/commentController.js';
 import { authenticate } from './middleware/auth.js';
@@ -33,7 +34,11 @@ app.use(cors({
   origin: true,
   credentials: true
 }));
-app.use(express.json());
+app.use(express.json({
+  verify: (req, res, buf) => {
+    req.rawBody = buf;
+  }
+}));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
@@ -119,6 +124,7 @@ app.delete('/api/comments/:id', authenticate, deleteComment);
 app.use('/api/favorites', favoriteRoutes);
 app.use('/api/logs', auditRoutes);
 app.use('/api/profile', profileRoutes);
+app.use('/api/stripe', stripeRoutes);
 
 // Rota fallback para SPA (Single Page Application)
 app.use((req, res, next) => {
