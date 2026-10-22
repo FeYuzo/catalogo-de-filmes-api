@@ -3,7 +3,7 @@
  */
 
 import { api } from './api.js';
-import { initAuth, updateNavUserAvatar } from './auth.js';
+import { initAuth, updateNavUserAvatar, openPremiumModal } from './auth.js';
 
 // Elementos da Interface
 const moviesGrid = document.getElementById('movies-grid');
@@ -338,19 +338,9 @@ async function toggleFavorite(movie) {
     renderCatalog();
     showToast(err.message || 'Erro ao atualizar favoritos.', 'error');
 
-    // Se atingiu o limite do plano gratuito, convida para o upgrade
+    // Se atingiu o limite do plano gratuito, convida para o upgrade exibindo o modal de benefícios
     if (err.message && (err.message.includes('limite') || err.message.includes('Premium'))) {
-      const wantUpgrade = confirm(`${err.message}\n\nDeseja assinar o Plano Premium agora por apenas R$ 9,90/mês para liberar favoritos ilimitados?`);
-      if (wantUpgrade) {
-        try {
-          const res = await api.createStripeCheckout();
-          if (res?.url) {
-            window.location.href = res.url;
-          }
-        } catch (checkoutErr) {
-          alert(checkoutErr.message || 'Erro ao abrir o checkout.');
-        }
-      }
+      openPremiumModal();
     }
   }
 }
@@ -610,20 +600,8 @@ function renderProfileData(profile) {
       if (premiumBoxDesc) premiumBoxDesc.textContent = 'Desbloqueie favoritos ilimitados e selo de apoiador por R$ 9,90/mês.';
       if (btnProfileSubscribe) {
         btnProfileSubscribe.classList.remove('hidden');
-        btnProfileSubscribe.onclick = async () => {
-          try {
-            btnProfileSubscribe.disabled = true;
-            btnProfileSubscribe.textContent = 'Iniciando checkout...';
-            const res = await api.createStripeCheckout();
-            if (res?.url) {
-              window.location.href = res.url;
-            }
-          } catch (err) {
-            alert(err.message || 'Erro ao iniciar checkout do Stripe.');
-          } finally {
-            btnProfileSubscribe.disabled = false;
-            btnProfileSubscribe.textContent = 'Assinar Premium';
-          }
+        btnProfileSubscribe.onclick = () => {
+          openPremiumModal();
         };
       }
     } else {

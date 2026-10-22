@@ -16,6 +16,12 @@ const navUserAvatar = document.getElementById('nav-user-avatar');
 const navAvatarIcon = document.getElementById('nav-avatar-icon');
 const btnLogout = document.getElementById('btn-logout');
 
+// Modal de Benefícios Premium
+const premiumModal = document.getElementById('premium-modal');
+const btnClosePremiumModal = document.getElementById('btn-close-premium-modal');
+const btnCancelPremiumModal = document.getElementById('btn-cancel-premium-modal');
+const btnConfirmCheckout = document.getElementById('btn-confirm-checkout');
+
 const authNavTabs = document.getElementById('auth-nav-tabs');
 const tabLogin = document.getElementById('tab-login');
 const tabRegister = document.getElementById('tab-register');
@@ -148,11 +154,24 @@ export function showAppView(user) {
   updateNavUserAvatar(photoUrl);
 }
 
+export function openPremiumModal() {
+  premiumModal?.classList.remove('hidden');
+}
+
+export function closePremiumModal() {
+  premiumModal?.classList.add('hidden');
+}
+
 export async function startStripeCheckout() {
+  const btnConfirm = document.getElementById('btn-confirm-checkout');
   try {
     if (btnNavPremium) {
       btnNavPremium.disabled = true;
       btnNavPremium.textContent = 'Carregando checkout...';
+    }
+    if (btnConfirm) {
+      btnConfirm.disabled = true;
+      btnConfirm.textContent = 'Carregando checkout do Stripe...';
     }
     const res = await api.createStripeCheckout();
     if (res?.url) {
@@ -166,6 +185,10 @@ export async function startStripeCheckout() {
     if (btnNavPremium) {
       btnNavPremium.disabled = false;
       btnNavPremium.textContent = '⭐ Seja Premium';
+    }
+    if (btnConfirm) {
+      btnConfirm.disabled = false;
+      btnConfirm.innerHTML = '<span>⭐ Assinar Premium por R$ 9,90/mês</span>';
     }
   }
 }
@@ -323,7 +346,20 @@ formRegister?.addEventListener('submit', handleRegister);
 formForgot?.addEventListener('submit', handleForgot);
 formReset?.addEventListener('submit', handleReset);
 btnLogout?.addEventListener('click', handleLogout);
-btnNavPremium?.addEventListener('click', startStripeCheckout);
+btnNavPremium?.addEventListener('click', openPremiumModal);
+btnConfirmCheckout?.addEventListener('click', startStripeCheckout);
+btnClosePremiumModal?.addEventListener('click', closePremiumModal);
+btnCancelPremiumModal?.addEventListener('click', closePremiumModal);
+
+premiumModal?.addEventListener('click', (e) => {
+  if (e.target === premiumModal) closePremiumModal();
+});
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && premiumModal && !premiumModal.classList.contains('hidden')) {
+    closePremiumModal();
+  }
+});
 
 window.addEventListener('auth:unauthorized', () => {
   showAuthView();

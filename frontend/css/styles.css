@@ -1635,3 +1635,197 @@ textarea:focus-visible {
   vertical-align: middle;
   margin-left: 0.35rem;
 }
+
+/* ================= MODAL: BENEFÍCIOS PREMIUM ================= */
+.modal-dialog-premium {
+  max-width: 530px;
+}
+
+.premium-modal-card {
+  border: 1px solid rgba(245, 158, 11, 0.45);
+  background: linear-gradient(180deg, #181424 0%, #110e1c 100%);
+  box-shadow: var(--shadow-lg), 0 0 45px -8px rgba(245, 158, 11, 0.28);
+}
+
+.premium-modal-header {
+  background: linear-gradient(180deg, rgba(245, 158, 11, 0.12) 0%, rgba(20, 16, 30, 0.95) 100%);
+  border-bottom: 1px solid rgba(245, 158, 11, 0.2);
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  padding: 1.25rem 1.5rem;
+}
+
+.premium-header-icon-badge {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-full);
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.2), rgba(217, 119, 6, 0.35));
+  border: 1px solid rgba(245, 158, 11, 0.5);
+  color: #fbbf24;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 0 16px rgba(245, 158, 11, 0.35);
+}
+
+.premium-header-text {
+  flex: 1;
+}
+
+.premium-modal-subtitle {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  margin-top: 0.2rem;
+}
+
+.premium-modal-body {
+  padding: 1.4rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.15rem;
+  max-height: calc(90vh - 90px);
+  overflow-y: auto;
+}
+
+.premium-banner-pricing {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.12), rgba(124, 58, 237, 0.16));
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  border-radius: var(--radius-lg);
+  padding: 1.15rem;
+  text-align: center;
+  position: relative;
+  box-shadow: inset 0 0 20px rgba(245, 158, 11, 0.05);
+}
+
+.pricing-label {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #cbd5e1;
+  font-weight: 700;
+}
+
+.pricing-value {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 0.25rem;
+  margin: 0.35rem 0 0.45rem;
+}
+
+.pricing-value .currency {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: #fbbf24;
+}
+
+.pricing-value .amount {
+  font-size: 2.4rem;
+  font-weight: 800;
+  color: #ffffff;
+  font-family: var(--font-display);
+  line-height: 1;
+}
+
+.pricing-value .period {
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.pricing-note {
+  font-size: 0.76rem;
+  color: #c084fc;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+}
+
+.premium-benefits-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.premium-benefit-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.85rem;
+  padding: 0.75rem 0.95rem;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: var(--radius-md);
+  transition: all var(--transition-fast);
+}
+
+.premium-benefit-card:hover {
+  background: rgba(245, 158, 11, 0.06);
+  border-color: rgba(245, 158, 11, 0.3);
+  transform: translateX(3px);
+}
+
+.premium-benefit-card .benefit-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  color: #fbbf24;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.premium-benefit-card .benefit-content {
+  flex: 1;
+}
+
+.premium-benefit-card .benefit-title {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #f4f4f7;
+  margin-bottom: 0.15rem;
+}
+
+.premium-benefit-card .benefit-desc {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  line-height: 1.35;
+  margin: 0;
+}
+
+.premium-modal-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.35rem;
+}
+
+.btn-checkout-action {
+  width: 100%;
+  padding: 0.85rem 1.25rem;
+  font-size: 0.95rem;
+  font-weight: 700;
+  justify-content: center;
+  letter-spacing: 0.02em;
+  box-shadow: 0 4px 18px rgba(245, 158, 11, 0.4);
+}
+
+.btn-ghost-light {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  cursor: pointer;
+  padding: 0.45rem;
+  transition: color var(--transition-fast);
+  text-align: center;
+}
+
+.btn-ghost-light:hover {
+  color: var(--text-main);
+}
