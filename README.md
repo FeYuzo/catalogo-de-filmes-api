@@ -15,7 +15,7 @@
 
 ## 📌 Sobre o Projeto
 
-Aplicação web estruturada em **Arquitetura de Microsserviços** para exibição e gerenciamento da filmografia do ator **Tom Hanks**, integrando consumo de dados em tempo real da **TMDB (The Movie Database)**, persistência no **MariaDB** com segregação por usuário, um **serviço isolado de autenticação** com gerenciamento de papéis (*roles*), recuperação de senhas por e-mail com expiração real, e um **serviço isolado de logs e auditoria (`log-service`)** com persistência em **Redis Streams** (`audit:events`) operando estritamente na rede interna do Docker.
+Aplicação web estruturada em **Arquitetura de Microsserviços** para exibição e gerenciamento da filmografia do ator **Tom Hanks**, integrando consumo de dados em tempo real da **TMDB (The Movie Database)**, persistência no **MariaDB** com segregação por usuário, um **serviço isolado de autenticação** com gerenciamento de papéis (*roles*), recuperação de senhas por e-mail com expiração real, um **serviço isolado de logs e auditoria (`log-service`)** com persistência em **Redis Streams** (`audit:events`), armazenamento de fotos de perfil no **MinIO (Object Storage S3)**, e fluxo de monetização e assinaturas recorrentes com **Stripe Checkout & Webhooks** para liberação do **Plano Premium** com favoritos ilimitados.
 
 ---
 
@@ -106,6 +106,9 @@ CREATE TABLE IF NOT EXISTS usuarios (
   role VARCHAR(20) NOT NULL DEFAULT 'usuario',
   bio VARCHAR(500) DEFAULT '',
   foto_perfil VARCHAR(255) DEFAULT NULL,
+  is_premium BOOLEAN DEFAULT FALSE,
+  stripe_customer_id VARCHAR(255) DEFAULT NULL,
+  stripe_subscription_id VARCHAR(255) DEFAULT NULL,
   criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
@@ -266,6 +269,9 @@ Crie seu arquivo `.env` baseado no `.env.example`:
 | `SMTP_USER` | Usuário SMTP do Mailtrap/Brevo | `seu_user_smtp` |
 | `SMTP_PASS` | Senha SMTP do Mailtrap/Brevo | `sua_senha_smtp` |
 | `SMTP_FROM` | Remetente dos e-mails | `Catálogo <nao-responda@catalogofilmes.com>` |
+| `STRIPE_SECRET_KEY` | Chave secreta da API do Stripe (modo teste/produção) | `sk_test_51...` |
+| `STRIPE_PRICE_ID` | Identificador do Preço/Plano criado no Stripe | `price_1...` |
+| `STRIPE_WEBHOOK_SECRET` | Chave secreta de assinatura criptográfica do Webhook Stripe | `whsec_...` |
 
 ---
 
@@ -1061,5 +1067,112 @@ curl -X GET http://localhost:3000/api/logs \
 }
 ```
 Isso comprova que a tentativa maliciosa foi não apenas bloqueada pelo mecanismo de controle de acesso, mas também devidamente registrada para análise forense no microsserviço de logs e auditoria.
+
+---
+
+## 💳 Monetização & Assinatura Premium (Integração com Stripe & Webhooks)
+
+A aplicação possui um modelo de assinatura recorrente (*Freemium*) integrado à infraestrutura global de pagamentos da **Stripe**, permitindo aos usuários desbloquear recursos VIP e remover limites de uso.
+
+### 1. Regras de Negócio: Plano Gratuito vs. Plano Premium
+
+| Recurso / Privilégio | Plano Gratuito | Plano Premium (R$ 9,90 / mês) |
+|---|:---:|:---:|
+| **Limite de Favoritos** | Máximo de **5 filmes** | **Ilimitado** (toda a filmografia) |
+| **Selo Dourado VIP** | Não | **⭐ PREMIUM** (perfil, navbar e comentários) |
+| **Destaque nos Comentários** | Normal | **Badge VIP Exclusiva** com destaque comunitário |
+| **Suporte & Infraestrutura** | Padrão | Prioritário com processamento via Webhook |
+| **Cancelamento** | N/A | A qualquer momento com 1 clique |
+
+---
+
+### 2. Arquitetura de Pagamentos & Webhooks Oficiais
+
+```
+[ Usuário ] ──► Clica "⭐ Seja Premium" ──► Visualiza Benefícios no Modal
+                                                       │
+                                                       ▼ Clica "Assinar Premium"
+                                            [ Catálogo / Backend ]
+                                                       │
+                                          Cria Checkout Session
+                                                       │
+                                                       ▼
+                                            [ Stripe Checkout ]
+                                          (Cartão / Apple Pay)
+                                                       │
+                                     Pagamento Concluído com Sucesso
+                                                       │
+                           ┌───────────────────────────┴───────────────────────────┐
+                           │ (Redirecionamento do Navegador)                      │ (Notificação Assíncrona Server-to-Server)
+                           ▼                                                       ▼
+                [ Frontend do Catálogo ]                                 [ Webhook: POST /api/stripe/webhook ]
+             (?payment=success&session_id=...)                          (Validação criptográfica de stripe-signature)
+                           │                                                       │
+             Exibe Alerta de Sucesso                                    Atualiza MariaDB (is_premium = TRUE)
+             Ativa Selo ⭐ PREMIUM                                      Registra Auditoria no Redis Streams
+```
+
+1. **Iniciação Segura**: O backend gera a sessão de checkout no Stripe através da SDK oficial (`stripe.checkout.sessions.create`), passando o `STRIPE_PRICE_ID` configurado, e-mail do usuário autenticado e `client_reference_id` inviolável.
+2. **Defesa Criptográfica do Webhook**: O endpoint `POST /api/stripe/webhook` utiliza o `rawBody` da requisição HTTP para validar a assinatura criptográfica `stripe-signature` com o segredo `STRIPE_WEBHOOK_SECRET`, impossibilitando falsificação de eventos por terceiros.
+3. **Persistência & Auditoria**: Ao receber o evento `checkout.session.completed` ou `invoice.payment_succeeded`, o status `is_premium` é alterado para `TRUE`, armazenando `stripe_customer_id` e `stripe_subscription_id`. O evento é simultaneamente auditado no Redis Streams (`audit:events`). Em caso de cancelamento (`customer.subscription.deleted`), a conta retorna automaticamente para o plano gratuito (`is_premium = FALSE`).
+
+---
+
+### 📸 Evidências Visuais da Assinatura Premium (Homologação / Produção)
+
+Abaixo estão registradas as evidências reais de funcionamento de todo o fluxo de assinatura Premium executado no ambiente de homologação (`felipe-shida-isw055.lapps.studio`):
+
+#### 1️⃣ Evidência 09: Catálogo no Plano Gratuito com Limite de Favoritos (1/5)
+O usuário autenticado visualiza o botão promocional *"⭐ Seja Premium"* no menu superior e a restrição de capacidade na aba de favoritos (`Meus Favoritos 1 / 5`).
+
+<p align="center">
+  <img src="./docs/evidencias/09-plano-gratuito-limite-favoritos.png" alt="Catálogo no Plano Gratuito com Limite de Favoritos (1/5)" width="90%" />
+</p>
+
+> **O que esta imagem comprova:** A interface identifica que o usuário pertence ao plano gratuito, indicando claramente a contagem de favoritos (`1 / 5`) e o botão de upgrade para o plano Premium no cabeçalho.
+
+---
+
+#### 2️⃣ Evidência 10: Modal de Apresentação dos Benefícios Premium
+Ao clicar em *"⭐ Seja Premium"*, o modal exclusivo é aberto apresentando de forma transparente o preço mensal (**R$ 9,90/mês**), ausência de fidelidade e os quatro benefícios principais.
+
+<p align="center">
+  <img src="./docs/evidencias/10-modal-beneficios-plano-premium.png" alt="Modal de Apresentação dos Benefícios do Plano Premium" width="90%" />
+</p>
+
+> **O que esta imagem comprova:** O usuário tem acesso completo à descrição dos benefícios (Favoritos Ilimitados, Selo Dourado, Destaque nos Comentários e Ativação Instantânea) antes de prosseguir com o pagamento, garantindo transparência e clareza de compra.
+
+---
+
+#### 3️⃣ Evidência 11: Checkout do Stripe em Modo de Teste Concluído
+O usuário é redirecionado para o ambiente seguro e oficial da **Stripe**, onde insere os dados de pagamento em modo de teste e tem a transação confirmada com sucesso.
+
+<p align="center">
+  <img src="./docs/evidencias/11-checkout-stripe-modo-teste-concluido.png" alt="Checkout do Stripe em Modo de Teste Concluído com Sucesso" width="90%" />
+</p>
+
+> **O que esta imagem comprova:** A integração com a plataforma Stripe em modo de teste (`4242 4242 4242 4242`), exibindo a razão social (*Área restrita de Filmes Tom Hanks*), valor da recorrência (*R$ 9,90 por mês*) e a finalização da cobrança com o ícone de validação verde.
+
+---
+
+#### 4️⃣ Evidência 12: Retorno Automático & Confirmação do Plano Premium
+Após o pagamento, o Stripe redireciona o usuário de volta à aplicação com o parâmetro `?payment=success`. O sistema exibe o aviso comemorativo e ativa imediatamente o selo dourado no topo.
+
+<p align="center">
+  <img src="./docs/evidencias/12-confirmacao-assinatura-premium-sucesso.png" alt="Confirmação de Sucesso da Assinatura Premium com Ativação de Selo" width="90%" />
+</p>
+
+> **O que esta imagem comprova:** A captura do retorno do checkout, o disparo da mensagem de confirmação em tela e a renderização do novo badge **⭐ PREMIUM** ao lado do nome do usuário (*Felipe Shida ADMIN ⭐ PREMIUM*).
+
+---
+
+#### 5️⃣ Evidência 13: Usuário Premium com Favoritos Ilimitados (7 Filmes)
+Com a assinatura ativa, a limitação de 5 filmes é removida permanentemente, permitindo ao usuário favoritar quantos filmes desejar da filmografia.
+
+<p align="center">
+  <img src="./docs/evidencias/13-usuario-premium-favoritos-ilimitados.png" alt="Usuário Premium com Favoritos Ilimitados e 7 Filmes Salvos" width="90%" />
+</p>
+
+> **O que esta imagem comprova:** O usuário salvou **7 filmes favoritos**, exibindo o rótulo **`Meus Favoritos 7 (⭐ Ilimitado)`**, comprovando a remoção da barreira de 5 filmes do plano gratuito e o pleno funcionamento da regra de negócio Premium.
 
 
